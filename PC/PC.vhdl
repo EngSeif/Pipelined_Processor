@@ -10,7 +10,6 @@ ENTITY PC IS
         clk        : IN STD_LOGIC;
         reset      : IN STD_LOGIC;
         enable     : IN STD_LOGIC;
-        stall      : IN STD_LOGIC;
         inAddresss : IN STD_LOGIC_VECTOR(Address_Bits - 1 DOWNTO 0);
         outAddress : OUT STD_LOGIC_VECTOR(Address_Bits - 1 DOWNTO 0)
     );
@@ -26,10 +25,9 @@ BEGIN
                 outAddress <= (OTHERS => '0'); -- Reset to address 0 (M[0] to be fetched externally)
             ELSIF enable = '1' THEN
                 outAddress <= STD_LOGIC_VECTOR(unsigned(inAddresss) + 1);
-            ELSE
-                outAddress <= outAddress; -- Increment PC by 1 for instruction fetch
+                -- to stall just make enable to 0
+                -- need to see how to handle incoming pc from stack for example  
             END IF;
         END IF;
     END PROCESS;
-
 END ARCHITECTURE;
