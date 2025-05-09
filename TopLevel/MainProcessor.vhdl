@@ -4,10 +4,11 @@ USE ieee.numeric_std.ALL;
 USE ieee.math_real.ALL;
 ENTITY MainProcessor IS
     PORT (
-        clk      : IN STD_LOGIC;
-        reset    : IN STD_LOGIC;
-        in_port  : IN STD_LOGIC_VECTOR(31 DOWNTO 0);
-        out_Port : OUT STD_LOGIC_VECTOR(31 DOWNTO 0)
+        clk            : IN STD_LOGIC;
+        reset          : IN STD_LOGIC;
+        interrupt_port : IN STD_LOGIC;
+        in_port        : IN STD_LOGIC_VECTOR(31 DOWNTO 0);
+        out_Port       : OUT STD_LOGIC_VECTOR(31 DOWNTO 0)
 
     );
 END ENTITY MainProcessor;
@@ -39,7 +40,7 @@ ARCHITECTURE rtl OF MainProcessor IS
 
             EX : IN STD_LOGIC;
             M  : IN STD_LOGIC;
-            WB : IN STD_LOGIC;
+            WB : IN STD_LOGIC_VECTOR(1 DOWNTO 0);
 
             PC : IN STD_LOGIC_VECTOR(11 DOWNTO 0);
 
@@ -53,7 +54,7 @@ ARCHITECTURE rtl OF MainProcessor IS
             Off_Imm   : IN STD_LOGIC_VECTOR(31 DOWNTO 0);
 
             ID_EXE_M  : OUT STD_LOGIC;
-            ID_EXE_WB : OUT STD_LOGIC;
+            ID_EXE_WB : OUT STD_LOGIC_VECTOR(1 DOWNTO 0);
 
             ID_EXE_PC : OUT STD_LOGIC_VECTOR(11 DOWNTO 0);
 
@@ -77,7 +78,7 @@ ARCHITECTURE rtl OF MainProcessor IS
             reset : IN STD_LOGIC;
 
             M  : IN STD_LOGIC;
-            WB : IN STD_LOGIC;
+            WB : IN STD_LOGIC_VECTOR(1 DOWNTO 0);
 
             PC : IN STD_LOGIC_VECTOR(11 DOWNTO 0);
 
@@ -92,7 +93,7 @@ ARCHITECTURE rtl OF MainProcessor IS
             Off_Imm    : IN STD_LOGIC_VECTOR(31 DOWNTO 0);
 
             EXE_MEM_M  : OUT STD_LOGIC;
-            EXE_MEM_WB : OUT STD_LOGIC;
+            EXE_MEM_WB : OUT STD_LOGIC_VECTOR(1 DOWNTO 0);
 
             EXE_MEM_PC : OUT STD_LOGIC_VECTOR(11 DOWNTO 0);
 
@@ -103,13 +104,38 @@ ARCHITECTURE rtl OF MainProcessor IS
             EXE_MEM_Rsrc1      : OUT STD_LOGIC_VECTOR(2 DOWNTO 0);
             EXE_MEM_Rsrc2      : OUT STD_LOGIC_VECTOR(2 DOWNTO 0);
             EXE_MEM_Rdest      : OUT STD_LOGIC_VECTOR(2 DOWNTO 0);
-            EXE_MEM_Opcode     : OUT STD_LOGIC_VECTOR(5 DOWNTO 0);
             EXE_MEM_Off_Imm    : OUT STD_LOGIC_VECTOR(31 DOWNTO 0)
         );
     END COMPONENT;
 
     ----------------------------------------------------------
     ----------------------------------------------------------
+    COMPONENT Memory_Writeback
+        PORT (
+            clk   : IN STD_LOGIC;
+            reset : IN STD_LOGIC;
+
+            WB : IN STD_LOGIC_VECTOR(1 DOWNTO 0);
+
+            readData1  : IN STD_LOGIC_VECTOR(31 DOWNTO 0);
+            readData2  : IN STD_LOGIC_VECTOR(31 DOWNTO 0);
+            memoryData : IN STD_LOGIC_VECTOR(31 DOWNTO 0);
+            ALU_result : IN STD_LOGIC_VECTOR(31 DOWNTO 0);
+            Rsrc1      : IN STD_LOGIC_VECTOR(2 DOWNTO 0);
+            Rsrc2      : IN STD_LOGIC_VECTOR(2 DOWNTO 0);
+            Rdest      : IN STD_LOGIC_VECTOR(2 DOWNTO 0);
+
+            MEM_WB_WB         : OUT STD_LOGIC_VECTOR(1 DOWNTO 0);
+            MEM_WB_readData1  : OUT STD_LOGIC_VECTOR(31 DOWNTO 0);
+            MEM_WB_readData2  : OUT STD_LOGIC_VECTOR(31 DOWNTO 0);
+            MEM_WB_memoryData : OUT STD_LOGIC_VECTOR(31 DOWNTO 0);
+            MEM_WB_ALU_result : OUT STD_LOGIC_VECTOR(31 DOWNTO 0);
+            MEM_WB_Rsrc1      : OUT STD_LOGIC_VECTOR(2 DOWNTO 0);
+            MEM_WB_Rsrc2      : OUT STD_LOGIC_VECTOR(2 DOWNTO 0);
+            MEM_WB_Rdest      : OUT STD_LOGIC_VECTOR(2 DOWNTO 0)
+        );
+    END COMPONENT;
+
     ------------------------------- End Pipeline Registers Declaration -----------------------------------------------
 
     ------------------------------- Start Register File Declaration -----------------------------------------------
@@ -176,6 +202,41 @@ ARCHITECTURE rtl OF MainProcessor IS
         );
     END COMPONENT;
     ------------------------------- End Program Counter Declaration -----------------------------------------------
+    ------------------------------- Start Control Unit  Declaration -----------------------------------------------
+    COMPONENT Control_unit
+        PORT (
+            instruction_bits : IN STD_LOGIC_VECTOR(31 DOWNTO 0);
+
+            zero_flag     : IN STD_LOGIC;
+            carry_flag    : IN STD_LOGIC;
+            negative_flag : IN STD_LOGIC;
+
+            Int : IN STD_LOGIC;
+            rst : IN STD_LOGIC;
+            clk : IN STD_LOGIC;
+
+            dst_reg_ex     : IN STD_LOGIC_VECTOR(2 DOWNTO 0);
+            is_load_ex     : IN STD_LOGIC;
+            mem_access_ex  : IN STD_LOGIC;
+            mem_access_mem : IN STD_LOGIC;
+
+            wb_ctrl     : OUT STD_LOGIC_VECTOR(1 DOWNTO 0);
+            pc_src      : OUT STD_LOGIC_VECTOR(1 DOWNTO 0);
+            address_sel : OUT STD_LOGIC_VECTOR(1 DOWNTO 0);
+            mem_read    : OUT STD_LOGIC;
+            mem_write   : OUT STD_LOGIC;
+            reg_write_1 : OUT STD_LOGIC;
+            reg_write_2 : OUT STD_LOGIC;
+            hlt_flag    : OUT STD_LOGIC;
+            sp_enable   : OUT STD_LOGIC;
+            sp_push     : OUT STD_LOGIC;
+            Int_Type    : OUT STD_LOGIC;
+            stall_flag  : OUT STD_LOGIC;
+            flush       : OUT STD_LOGIC
+        );
+    END COMPONENT;
+
+    ------------------------------- End Control Unit Declaration -----------------------------------------------
     ------------------------------- Signal Declaration -----------------------------------------------
 
     ----PC
@@ -216,12 +277,12 @@ ARCHITECTURE rtl OF MainProcessor IS
     ---- Decode Execute
     SIGNAL EX                     : STD_LOGIC;
     SIGNAL M_for_decode_execute   : STD_LOGIC;
-    SIGNAL WB_for_decode_execute  : STD_LOGIC;
+    SIGNAL WB_for_decode_execute  : STD_LOGIC_VECTOR(1 DOWNTO 0);
     SIGNAL Off_Imm_decode_execute : STD_LOGIC_VECTOR(31 DOWNTO 0) :=
     (15 DOWNTO 0 => IF_ID_Instruction_out(19)) & IF_ID_Instruction_out(19 DOWNTO 4);--sign extended
 
     SIGNAL M_for_execute_memory  : STD_LOGIC;
-    SIGNAL WB_for_execute_memory : STD_LOGIC;
+    SIGNAL WB_for_execute_memory : STD_LOGIC_VECTOR(1 DOWNTO 0);
     SIGNAL ID_EXE_PC_out         : STD_LOGIC_VECTOR(11 DOWNTO 0);
     SIGNAL ID_EXE_Index_out      : STD_LOGIC;
     SIGNAL ID_EXE_readData1_out  : STD_LOGIC_VECTOR(31 DOWNTO 0);
@@ -236,6 +297,7 @@ ARCHITECTURE rtl OF MainProcessor IS
     -- SIGNAL M_for_execute_memory  : STD_LOGIC;
     -- SIGNAL WB_for_execute_memory : STD_LOGIC;
     SIGNAL EXE_MEM_index_out      : STD_LOGIC;
+    SIGNAL WB_Memory_WriteBack    : STD_LOGIC_VECTOR(1 DOWNTO 0);
     SIGNAL EXE_MEM_readData1_out  : STD_LOGIC_VECTOR(31 DOWNTO 0);
     SIGNAL EXE_MEM_readData2_out  : STD_LOGIC_VECTOR(31 DOWNTO 0);
     SIGNAL EXE_MEM_ALU_result_out : STD_LOGIC_VECTOR(31 DOWNTO 0);
@@ -243,6 +305,8 @@ ARCHITECTURE rtl OF MainProcessor IS
     SIGNAL EXE_MEM_Rsrc2_out      : STD_LOGIC_VECTOR(2 DOWNTO 0);
     SIGNAL EXE_MEM_Rdest_out      : STD_LOGIC_VECTOR(2 DOWNTO 0);
     SIGNAL EXE_MEM_Off_Imm_sig    : STD_LOGIC_VECTOR(31 DOWNTO 0);
+    ----Memory Write Back
+
     ---- Execute_Stage
     SIGNAL EXEC_STAGE_Result : STD_LOGIC_VECTOR(31 DOWNTO 0);
     SIGNAL CCR_out           : STD_LOGIC_VECTOR(2 DOWNTO 0);
@@ -322,7 +386,7 @@ BEGIN
         Opcode             => ID_EXE_Opcode_out,
         Off_Imm            => ID_EXE_Off_Imm_out,
         EXE_MEM_M          => MEM_readEn, --gona make it MEM_readEn for now --!need to check to see which signal is it
-        EXE_MEM_WB         => MEM_writeEn,
+        EXE_MEM_WB         => WB_Memory_WriteBack,
         EXE_MEM_PC         => MEM_address_from_PC,
         EXE_MEM_index      => EXE_MEM_index_out,
         EXE_MEM_readData1  => EXE_MEM_readData1_out,
@@ -331,11 +395,64 @@ BEGIN
         EXE_MEM_Rsrc1      => EXE_MEM_Rsrc1_out,
         EXE_MEM_Rsrc2      => EXE_MEM_Rsrc2_out,
         EXE_MEM_Rdest      => EXE_MEM_Rdest_out,
-        --EXE_MEM_Opcode     => EXE_MEM_Opcode_sig, --!-why do we have this??!!
-        EXE_MEM_Off_Imm => EXE_MEM_Off_Imm_sig
+        EXE_MEM_Off_Imm    => EXE_MEM_Off_Imm_sig
     );
 
+    ----------------------------------------------------------
+    ----------------------------------------------------------
+    MWB_STAGE : Memory_Writeback
+    PORT MAP(
+        clk               => clk,
+        reset             => reset,
+        WB                => WB,
+        readData1         => readData1,
+        readData2         => readData2,
+        memoryData        => memoryData,
+        ALU_result        => ALU_result,
+        Rsrc1             => Rsrc1,
+        Rsrc2             => Rsrc2,
+        Rdest             => Rdest,
+        MEM_WB_WB         => MEM_WB_WB,
+        MEM_WB_readData1  => MEM_WB_readData1,
+        MEM_WB_readData2  => MEM_WB_readData2,
+        MEM_WB_memoryData => MEM_WB_memoryData,
+        MEM_WB_ALU_result => MEM_WB_ALU_result,
+        MEM_WB_Rsrc1      => MEM_WB_Rsrc1,
+        MEM_WB_Rsrc2      => MEM_WB_Rsrc2,
+        MEM_WB_Rdest      => MEM_WB_Rdest
+    );
     ------------------------------- End pipeline Registers Instantiation -----------------------------------------------
+    ------------------------------- Start Control Unit Instantiation -----------------------------------------------
+    CU : Control_unit
+    PORT MAP(
+        Int              => interrupt_port,
+        rst              => reset,
+        clk              => clk,
+        instruction_bits => IF_ID_Instruction_out,
+        zero_flag        => CCR_out(0),
+        carry_flag       => CCR_out(2),
+        negative_flag    => CCR_out(1),
+        dst_reg_ex       => dst_reg_ex,
+        is_load_ex       => is_load_ex,
+        mem_access_ex    => mem_access_ex,
+        mem_access_mem   => mem_access_mem,
+        wb_ctrl          => wb_ctrl,
+        pc_src           => pc_src,
+        address_sel      => address_sel,
+        mem_read         => mem_read,
+        mem_write        => mem_write,
+        reg_write_1      => reg_write_1,
+        reg_write_2      => reg_write_2,
+        hlt_flag         => hlt_flag,
+        sp_enable        => sp_enable,
+        sp_push          => sp_push,
+        Int_Type         => Int_Type,
+        stall_flag       => stall_flag,
+        flush            => flush
+    );
+
+    ------------------------------- End  Control Unit Instantiation -----------------------------------------------
+
     ------------------------------- Start Registers File Instantiation -----------------------------------------------
 
     REG_FILE : Register_File --!write signals should come from the write back register
