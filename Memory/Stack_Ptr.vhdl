@@ -10,7 +10,7 @@ ENTITY Stack_Ptr IS
         clk      : IN STD_LOGIC;
         reset    : IN STD_LOGIC;
         enable   : IN STD_LOGIC; -- enable update
-        push     : IN STD_LOGIC; -- if '1': SP--; if '0': SP++
+        push_Pop : IN STD_LOGIC; -- if '1': SP--; if '0': SP++
         sp_value : OUT STD_LOGIC_VECTOR(Address_Bits - 1 DOWNTO 0)
     );
 END ENTITY Stack_Ptr;
@@ -24,7 +24,7 @@ BEGIN
             IF reset = '1' THEN
                 sp_reg <= STD_LOGIC_VECTOR(to_unsigned(2 ** 12 - 1, Address_Bits)); -- initial value: 0xFFF
             ELSIF enable = '1' THEN
-                IF push = '1' THEN
+                IF push_Pop = '1' THEN
                     sp_reg <= STD_LOGIC_VECTOR(unsigned(sp_reg) - 1);
                 ELSE-- else it is pop so increment stack pointer
                     IF unsigned(sp_reg) < to_unsigned(2 ** Address_Bits - 1, Address_Bits) THEN
