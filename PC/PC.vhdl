@@ -24,12 +24,14 @@ BEGIN
         IF rising_edge(clk) THEN
             IF reset = '1' THEN
                 outAddress <= (OTHERS => '0'); -- Reset to address 0 (M[0] to be fetched externally)
+
+            ELSIF writeEn = '1' THEN
+                outAddress <= STD_LOGIC_VECTOR(unsigned(inAddresss));
+
             ELSIF enable = '1' THEN
                 outAddress <= STD_LOGIC_VECTOR(unsigned(inAddresss) + 1);
                 -- to stall just make enable to 0
                 -- need to see how to handle incoming pc from stack for example  
-            ELSIF writeEn = '1' THEN
-                outAddress <= STD_LOGIC_VECTOR(unsigned(inAddresss));
             END IF;
         END IF;
     END PROCESS;
