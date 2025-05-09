@@ -185,9 +185,9 @@ ARCHITECTURE rtl OF MainProcessor IS
     SIGNAL PC_outAddress : STD_LOGIC_VECTOR(11 DOWNTO 0); -- Current PC output
 
     ----Memory
-    SIGNAL MEM_writeEn             : STD_LOGIC;                     -- Asserted to perform write on falling edge (e.g., STD, PUSH)
-    SIGNAL MEM_readEn              : STD_LOGIC;                     -- Asserted to perform read on rising edge (e.g., LDD, POP, RTI)
-    SIGNAL MEM_address_from_PC     : STD_LOGIC_VECTOR(11 DOWNTO 0); -- PC-based memory address
+    SIGNAL MEM_writeEn             : STD_LOGIC; -- Asserted to perform write on falling edge (e.g., STD, PUSH)
+    SIGNAL MEM_readEn              : STD_LOGIC; -- Asserted to perform read on rising edge (e.g., LDD, POP, RTI)
+    SIGNAL MEM_address_from_PC     : STD_LOGIC_VECTOR(11 DOWNTO 0);--!do we really need it? -- PC-based memory address
     SIGNAL MEM_address_from_ALU    : STD_LOGIC_VECTOR(11 DOWNTO 0); -- ALU result from EXE_MEM
     SIGNAL MEM_address_mux_select  : STD_LOGIC;                     -- Selects address source: '0' = PC, '1' = ALU
     SIGNAL MEM_address             : STD_LOGIC_VECTOR(11 DOWNTO 0); -- Final address input to memory
@@ -232,9 +232,17 @@ ARCHITECTURE rtl OF MainProcessor IS
     SIGNAL ID_EXE_Opcode_out     : STD_LOGIC_VECTOR(5 DOWNTO 0);
     SIGNAL ID_EXE_Off_Imm_out    : STD_LOGIC_VECTOR(31 DOWNTO 0);
 
-    ---- Execute Memory
-    SIGNAL M_for_execute_memory  : STD_LOGIC;
-    SIGNAL WB_for_execute_memory : STD_LOGIC;
+    --!-- Execute Memory
+    -- SIGNAL M_for_execute_memory  : STD_LOGIC;
+    -- SIGNAL WB_for_execute_memory : STD_LOGIC;
+    SIGNAL EXE_MEM_index_out      : STD_LOGIC;
+    SIGNAL EXE_MEM_readData1_out  : STD_LOGIC_VECTOR(31 DOWNTO 0);
+    SIGNAL EXE_MEM_readData2_out  : STD_LOGIC_VECTOR(31 DOWNTO 0);
+    SIGNAL EXE_MEM_ALU_result_out : STD_LOGIC_VECTOR(31 DOWNTO 0);
+    SIGNAL EXE_MEM_Rsrc1_out      : STD_LOGIC_VECTOR(2 DOWNTO 0);
+    SIGNAL EXE_MEM_Rsrc2_out      : STD_LOGIC_VECTOR(2 DOWNTO 0);
+    SIGNAL EXE_MEM_Rdest_out      : STD_LOGIC_VECTOR(2 DOWNTO 0);
+    SIGNAL EXE_MEM_Off_Imm_sig    : STD_LOGIC_VECTOR(31 DOWNTO 0);
     ---- Execute_Stage
     SIGNAL EXEC_STAGE_Result : STD_LOGIC_VECTOR(31 DOWNTO 0);
     SIGNAL CCR_out           : STD_LOGIC_VECTOR(2 DOWNTO 0);
@@ -313,24 +321,24 @@ BEGIN
         Rdest              => ID_EXE_Rdest_out,
         Opcode             => ID_EXE_Opcode_out,
         Off_Imm            => ID_EXE_Off_Imm_out,
-        EXE_MEM_M          => EXE_MEM_M_sig, --!need to check to see which signal is it
-        EXE_MEM_WB         => EXE_MEM_WB_sig,
-        EXE_MEM_PC         => EXE_MEM_PC_sig,
-        EXE_MEM_index      => EXE_MEM_index_sig,
-        EXE_MEM_readData1  => EXE_MEM_readData1_sig,
-        EXE_MEM_readData2  => EXE_MEM_readData2_sig,
-        EXE_MEM_ALU_result => EXE_MEM_ALU_result_sig,
-        EXE_MEM_Rsrc1      => EXE_MEM_Rsrc1_sig,
-        EXE_MEM_Rsrc2      => EXE_MEM_Rsrc2_sig,
-        EXE_MEM_Rdest      => EXE_MEM_Rdest_sig,
-        EXE_MEM_Opcode     => EXE_MEM_Opcode_sig,
-        EXE_MEM_Off_Imm    => EXE_MEM_Off_Imm_sig
+        EXE_MEM_M          => MEM_readEn, --gona make it MEM_readEn for now --!need to check to see which signal is it
+        EXE_MEM_WB         => MEM_writeEn,
+        EXE_MEM_PC         => MEM_address_from_PC,
+        EXE_MEM_index      => EXE_MEM_index_out,
+        EXE_MEM_readData1  => EXE_MEM_readData1_out,
+        EXE_MEM_readData2  => EXE_MEM_readData2_out,
+        EXE_MEM_ALU_result => EXE_MEM_ALU_result_out,
+        EXE_MEM_Rsrc1      => EXE_MEM_Rsrc1_out,
+        EXE_MEM_Rsrc2      => EXE_MEM_Rsrc2_out,
+        EXE_MEM_Rdest      => EXE_MEM_Rdest_out,
+        --EXE_MEM_Opcode     => EXE_MEM_Opcode_sig, --!-why do we have this??!!
+        EXE_MEM_Off_Imm => EXE_MEM_Off_Imm_sig
     );
 
     ------------------------------- End pipeline Registers Instantiation -----------------------------------------------
     ------------------------------- Start Registers File Instantiation -----------------------------------------------
 
-    REG_FILE : Register_File
+    REG_FILE : Register_File --!write signals should come from the write back register
     PORT MAP(
         clk         => clk,
         reset       => reset,
