@@ -9,7 +9,7 @@ ENTITY Decode_Execute IS
         
         EX                  : IN STD_LOGIC;
         M                   : IN STD_LOGIC;
-        WB                  : IN STD_LOGIC;
+        WB                  : IN STD_LOGIC_VECTOR(1 DOWNTO 0);
         
         PC                  : IN STD_LOGIC_VECTOR(11 DOWNTO 0);
        
@@ -24,7 +24,7 @@ ENTITY Decode_Execute IS
 
         -- Outputs to Execute stage
         ID_EXE_M            : OUT STD_LOGIC;
-        ID_EXE_WB           : OUT STD_LOGIC;
+        ID_EXE_WB           : OUT STD_LOGIC_VECTOR(1 DOWNTO 0);
         
         ID_EXE_PC           : OUT STD_LOGIC_VECTOR(11 DOWNTO 0);
 
@@ -46,7 +46,7 @@ BEGIN
     BEGIN
         IF reset = '1' THEN
             ID_EXE_M            <= '0';
-            ID_EXE_WB           <= '0';
+            ID_EXE_WB           <= (others => '0');
             ID_EXE_PC           <= (others => '0');
             ID_EXE_index        <= '0';
             ID_EXE_readData1    <= (others => '0');
