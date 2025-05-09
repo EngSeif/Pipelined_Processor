@@ -162,8 +162,11 @@ ARCHITECTURE rtl OF MainProcessor IS
             outAddress : OUT STD_LOGIC_VECTOR(Address_Bits - 1 DOWNTO 0)
         );
     END COMPONENT;
-
     ------------------------------- End Program Counter Declaration -----------------------------------------------
+    ------------------------------- Signal Declaration -----------------------------------------------
+    SIGNAL IF_ID_Instruction_sig : STD_LOGIC_VECTOR(31 DOWNTO 0);
+    SIGNAL IF_ID_PC_sig          : STD_LOGIC_VECTOR(11 DOWNTO 0);
+
 BEGIN
     ------------------------------- Start pipeline registers Instantiation -----------------------------------------------
     Fetch_Decode_REG : Fetch_Decode
