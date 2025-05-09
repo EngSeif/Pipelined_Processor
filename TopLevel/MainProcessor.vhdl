@@ -220,10 +220,10 @@ ARCHITECTURE rtl OF MainProcessor IS
     SIGNAL Off_Imm_decode_execute : STD_LOGIC_VECTOR(31 DOWNTO 0) :=
     (15 DOWNTO 0 => IF_ID_Instruction_out(19)) & IF_ID_Instruction_out(19 DOWNTO 4);--sign extended
 
-    SIGNAL M_for_execute_decode  : STD_LOGIC;
-    SIGNAL WB_for_execute_decode : STD_LOGIC;
-    SIGNAL ID_EX_PC_out          : STD_LOGIC_VECTOR(11 DOWNTO 0);
-    SIGNAL ID_EX_Index_out       : STD_LOGIC;
+    SIGNAL M_for_execute_memory  : STD_LOGIC;
+    SIGNAL WB_for_execute_memory : STD_LOGIC;
+    SIGNAL ID_EXE_PC_out         : STD_LOGIC_VECTOR(11 DOWNTO 0);
+    SIGNAL ID_EXE_Index_out      : STD_LOGIC;
     SIGNAL ID_EXE_readData1_out  : STD_LOGIC_VECTOR(31 DOWNTO 0);
     SIGNAL ID_EXE_readData2_out  : STD_LOGIC_VECTOR(31 DOWNTO 0);
     SIGNAL ID_EXE_Rsrc1_out      : STD_LOGIC_VECTOR(2 DOWNTO 0);
@@ -233,8 +233,11 @@ ARCHITECTURE rtl OF MainProcessor IS
     SIGNAL ID_EXE_Off_Imm_out    : STD_LOGIC_VECTOR(31 DOWNTO 0);
 
     ---- Execute Memory
-    SIGNAL M_for_execute_decode  : STD_LOGIC;
-    SIGNAL WB_for_execute_decode : STD_LOGIC;
+    SIGNAL M_for_execute_memory  : STD_LOGIC;
+    SIGNAL WB_for_execute_memory : STD_LOGIC;
+    ---- Execute_Stage
+    SIGNAL EXEC_STAGE_Result : STD_LOGIC_VECTOR(31 DOWNTO 0);
+    SIGNAL CCR_out           : STD_LOGIC_VECTOR(2 DOWNTO 0);
 
 BEGIN
     WITH MEM_data_out_mux_select SELECT
@@ -243,7 +246,7 @@ BEGIN
 
     WITH MEM_address_mux_select SELECT
         MEM_address <= PC_outAddress WHEN '0',
-        result WHEN '1',
+        EXEC_STAGE_Result WHEN '1',
         (OTHERS => '0') WHEN OTHERS;
 
     ------------------------------- Start pipeline registers Instantiation -----------------------------------------------
@@ -278,10 +281,10 @@ BEGIN
         Rdest            => IF_ID_Instruction_out(25 DOWNTO 23),
         Opcode           => IF_ID_Instruction_out(31 DOWNTO 26),
         Off_Imm          => Off_Imm_decode_execute,
-        ID_EXE_M         => M_for_execute_decode,
-        ID_EXE_WB        => WB_for_execute_decode,
-        ID_EXE_PC        => ID_EX_PC_out,
-        ID_EXE_index     => ID_EX_Index_out,
+        ID_EXE_M         => M_for_execute_memory,
+        ID_EXE_WB        => WB_for_execute_memory,
+        ID_EXE_PC        => ID_EXE_PC_out,
+        ID_EXE_index     => ID_EXE_Index_out,
         ID_EXE_readData1 => ID_EXE_readData1_out,
         ID_EXE_readData2 => ID_EXE_readData2_out,
         ID_EXE_Rsrc1     => ID_EXE_Rsrc1_out,
@@ -298,19 +301,19 @@ BEGIN
     PORT MAP(
         clk                => clk,
         reset              => reset,
-        M                  => ID_EXE_M_sig,
-        WB                 => ID_EXE_WB_sig,
-        PC                 => ID_EXE_PC_sig,
-        index              => ID_EXE_index_sig,
-        readData1          => ID_EXE_readData1_sig,
-        readData2          => ID_EXE_readData2_sig,
-        ALU_result         => ALU_result,
-        Rsrc1              => ID_EXE_Rsrc1_sig,
-        Rsrc2              => ID_EXE_Rsrc2_sig,
-        Rdest              => ID_EXE_Rdest_sig,
-        Opcode             => ID_EXE_Opcode_sig,
-        Off_Imm            => ID_EXE_Off_Imm_sig,
-        EXE_MEM_M          => EXE_MEM_M_sig,
+        M                  => M_for_execute_memory,
+        WB                 => WB_for_execute_memory,
+        PC                 => ID_EXE_PC_out,
+        index              => ID_EXE_Index_out,
+        readData1          => ID_EXE_readData1_out,
+        readData2          => ID_EXE_readData2_out,
+        ALU_result         => EXEC_STAGE_Result,
+        Rsrc1              => ID_EXE_Rsrc1_out,
+        Rsrc2              => ID_EXE_Rsrc2_out,
+        Rdest              => ID_EXE_Rdest_out,
+        Opcode             => ID_EXE_Opcode_out,
+        Off_Imm            => ID_EXE_Off_Imm_out,
+        EXE_MEM_M          => EXE_MEM_M_sig, --!need to check to see which signal is it
         EXE_MEM_WB         => EXE_MEM_WB_sig,
         EXE_MEM_PC         => EXE_MEM_PC_sig,
         EXE_MEM_index      => EXE_MEM_index_sig,
@@ -363,10 +366,10 @@ BEGIN
     EXEC_STAGE : ExecuteStage
     PORT MAP(
         clk              => clk,
-        opcode           => opcode,
-        Rsrc1_Data_IF_ID => Rsrc1_Data_IF_ID,
-        result           => result,
-        CCR              => CCR
+        opcode           => ID_EXE_Opcode_out,
+        Rsrc1_Data_IF_ID => ID_EXE_Rsrc1_out,
+        result           => EXEC_STAGE_Result,
+        CCR              => CCR_out
     );
 
     ------------------------------- End  Execute Stage Instantiation -----------------------------------------------
