@@ -229,6 +229,12 @@ ARCHITECTURE rtl OF MainProcessor IS
     SIGNAL ID_EXE_Rsrc1_out      : STD_LOGIC_VECTOR(2 DOWNTO 0);
     SIGNAL ID_EXE_Rsrc2_out      : STD_LOGIC_VECTOR(2 DOWNTO 0);
     SIGNAL ID_EXE_Rdest_out      : STD_LOGIC_VECTOR(2 DOWNTO 0);
+    SIGNAL ID_EXE_Opcode_out     : STD_LOGIC_VECTOR(5 DOWNTO 0);
+    SIGNAL ID_EXE_Off_Imm_out    : STD_LOGIC_VECTOR(31 DOWNTO 0);
+
+    ---- Execute Memory
+    SIGNAL M_for_execute_decode  : STD_LOGIC;
+    SIGNAL WB_for_execute_decode : STD_LOGIC;
 
 BEGIN
     WITH MEM_data_out_mux_select SELECT
@@ -280,9 +286,9 @@ BEGIN
         ID_EXE_readData2 => ID_EXE_readData2_out,
         ID_EXE_Rsrc1     => ID_EXE_Rsrc1_out,
         ID_EXE_Rsrc2     => ID_EXE_Rsrc2_out,
-        ID_EXE_Rdest     => ID_EXE_Rdest_sig,
-        ID_EXE_Opcode    => ID_EXE_Opcode_sig,
-        ID_EXE_Off_Imm   => ID_EXE_Off_Imm_sig
+        ID_EXE_Rdest     => ID_EXE_Rdest_out,
+        ID_EXE_Opcode    => ID_EXE_Opcode_out,
+        ID_EXE_Off_Imm   => ID_EXE_Off_Imm_out
     );
 
     ----------------------------------------------------------
