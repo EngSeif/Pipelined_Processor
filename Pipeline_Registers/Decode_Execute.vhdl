@@ -2,7 +2,7 @@ LIBRARY IEEE;
 USE IEEE.STD_LOGIC_1164.ALL;
 USE IEEE.STD_LOGIC_UNSIGNED.ALL;
 
-ENTITY ID_EXE_Register IS
+ENTITY Decode_Execute IS
     PORT (
         clk                 : IN STD_LOGIC;
         reset               : IN STD_LOGIC;
@@ -26,7 +26,7 @@ ENTITY ID_EXE_Register IS
         ID_EXE_M            : OUT STD_LOGIC;
         ID_EXE_WB           : OUT STD_LOGIC;
         
-        ID_EXE_PC           : OUT STD_LOGIC_VECTOR(31 DOWNTO 0);
+        ID_EXE_PC           : OUT STD_LOGIC_VECTOR(11 DOWNTO 0);
 
         ID_EXE_index        : OUT STD_LOGIC;
         ID_EXE_readData1    : OUT STD_LOGIC_VECTOR(31 DOWNTO 0);
@@ -37,9 +37,9 @@ ENTITY ID_EXE_Register IS
         ID_EXE_Opcode       : OUT STD_LOGIC_VECTOR(5 DOWNTO 0);
         ID_EXE_Off_Imm      : OUT STD_LOGIC_VECTOR(31 DOWNTO 0)
     );
-END ID_EXE_Register;
+END Decode_Execute;
 
-ARCHITECTURE Behavioral OF ID_EXE_Register IS
+ARCHITECTURE Behavioral OF Decode_Execute IS
 BEGIN
 
     PROCESS (clk, reset)
