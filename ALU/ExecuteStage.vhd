@@ -1,73 +1,73 @@
-library IEEE;
-use IEEE.STD_LOGIC_1164.ALL;
-use IEEE.NUMERIC_STD.ALL;
+LIBRARY IEEE;
+USE IEEE.STD_LOGIC_1164.ALL;
+USE IEEE.NUMERIC_STD.ALL;
 
-entity ExecuteStage is
-    Port (
-        clk               : in  std_logic;
-		  opcode            : in  std_logic_vector(5  downto 0);
-		  Rsrc1_Data_IF_ID  : in  std_logic_vector(31 downto 0);
-        result            : out std_logic_vector(31 downto 0);
-        CCR               : out std_logic_vector(2  downto 0) -- Z(0), N(1), C(2)
-    );
-end ExecuteStage;
+ENTITY ExecuteStage IS
+	PORT (
+		clk              : IN STD_LOGIC;
+		opcode           : IN STD_LOGIC_VECTOR(5 DOWNTO 0);
+		Rsrc1_Data_IF_ID : IN STD_LOGIC_VECTOR(31 DOWNTO 0);
+		result           : OUT STD_LOGIC_VECTOR(31 DOWNTO 0);
+		CCR              : OUT STD_LOGIC_VECTOR(2 DOWNTO 0) -- Z(0), N(1), C(2)
+	);
+END ExecuteStage;
 
-architecture Behavioral of ExecuteStage is
-    signal alu_result : std_logic_vector(31 downto 0);
-    signal Z, N, C : std_logic;
-begin
+ARCHITECTURE Behavioral OF ExecuteStage IS
+	SIGNAL alu_result : STD_LOGIC_VECTOR(31 DOWNTO 0);
+	SIGNAL Z, N, C    : STD_LOGIC;
+BEGIN
 
-    process(clk)
-    begin
-        if rising_edge(clk) then
-            case opcode is
+	PROCESS (clk)
+	BEGIN
+		IF rising_edge(clk) THEN
+			CASE opcode IS
 					-- (1): SETC (N-Type)
-               when "000010" =>
-                  alu_result <= Rsrc1_Data_IF_ID; -- No operation result change
-						if alu_result = x"00000000" then
-							Z <= '1';
-						else
-						   Z <= '0';
-						end if;
-						 N <= '0'; 
-						 C <= '1';
+				WHEN "000010" =>
+					alu_result <= Rsrc1_Data_IF_ID; -- No operation result change
+					IF alu_result = x"00000000" THEN
+						Z <= '1';
+					ELSE
+						Z <= '0';
+					END IF;
+					N <= '0';
+					C <= '1';
 
 					-- (2): NOT (R-Type)
-               when "010000" =>
-                  alu_result <= not Rsrc1_Data_IF_ID;
-					   if alu_result = x"00000000" then
-							Z <= '1';
-						else
-						   Z <= '0';
-						end if;
-                  N <= alu_result(31);
-                  C <= '0'; -- Not affected
+				WHEN "010000" =>
+					alu_result <= NOT Rsrc1_Data_IF_ID;
+					IF alu_result = x"00000000" THEN
+						Z <= '1';
+					ELSE
+						Z <= '0';
+					END IF;
+					N <= alu_result(31);
+					C <= '0'; -- Not affected
 
 					-- (3): INC (R-Type)
-               when "010001" =>  -- INC
-                  alu_result <= std_logic_vector(unsigned(Rsrc1_Data_IF_ID) + 1);
-						if alu_result = x"00000000" then
-							Z <= '1';
-						else
-						   Z <= '0';
-						end if;
-                  N <= alu_result(31);
-						if Rsrc1_Data_IF_ID = x"FFFFFFFF" then -- Carry when overflow
-							C <= '1';
-						else
-						   C <= '0';
-						end if;
+				WHEN "010001" => -- INC
+					alu_result <= STD_LOGIC_VECTOR(unsigned(Rsrc1_Data_IF_ID) + 1);
+					IF alu_result = x"00000000" THEN
+						Z <= '1';
+					ELSE
+						Z <= '0';
+					END IF;
+					N <= alu_result(31);
+					IF Rsrc1_Data_IF_ID = x"FFFFFFFF" THEN -- Carry when overflow
+						C <= '1';
+					ELSE
+						C <= '0';
+					END IF;
 
-               when others =>
-                   alu_result <= (others => '0');
-                   Z <= '0';
-						 N <= '0'; 
-						 C <= '0';
-           end case;
+				WHEN OTHERS           =>
+					alu_result <= (OTHERS => '0');
+					Z          <= '0';
+					N          <= '0';
+					C          <= '0';
+			END CASE;
 
-            result <= alu_result;
-            CCR <= C & N & Z;
-        end if;
-    end process;
+			result <= alu_result;
+			CCR    <= C & N & Z;
+		END IF;
+	END PROCESS;
 
-end Behavioral;
+END Behavioral;

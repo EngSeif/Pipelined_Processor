@@ -131,13 +131,24 @@ ARCHITECTURE rtl OF MainProcessor IS
     END COMPONENT;
 
     ------------------------------- End register File Declaration -----------------------------------------------
+    ------------------------------- Start Execution Stage Declaration -----------------------------------------------
+    COMPONENT ExecuteStage
+        PORT (
+            clk              : IN STD_LOGIC;
+            opcode           : IN STD_LOGIC_VECTOR(5 DOWNTO 0);
+            Rsrc1_Data_IF_ID : IN STD_LOGIC_VECTOR(31 DOWNTO 0);
+            result           : OUT STD_LOGIC_VECTOR(31 DOWNTO 0);
+            CCR              : OUT STD_LOGIC_VECTOR(2 DOWNTO 0) -- Z(0), N(1), C(2)
+        );
+    END COMPONENT;
+    ------------------------------- End Execution Stage Declaration -----------------------------------------------
     ------------------------------- Start Memory Declaration -----------------------------------------------
     COMPONENT Memory
         GENERIC (
             Address_bits : INTEGER := 12;
             Data_width   : INTEGER := 32
         );
-            PORT (
+        PORT (
             clk      : IN STD_LOGIC;
             reset    : IN STD_LOGIC;
             writeEn  : IN STD_LOGIC;
@@ -155,7 +166,7 @@ ARCHITECTURE rtl OF MainProcessor IS
         GENERIC (
             Address_Bits : INTEGER := 12
         );
-            PORT (
+        PORT (
             clk        : IN STD_LOGIC;
             reset      : IN STD_LOGIC;
             enable     : IN STD_LOGIC;
@@ -168,39 +179,78 @@ ARCHITECTURE rtl OF MainProcessor IS
     ------------------------------- Signal Declaration -----------------------------------------------
 
     ----PC
-    signal PC_writeEn     : STD_LOGIC;                          -- Loads PC with inAddresss when set
-    signal PC_enable      : STD_LOGIC;                          -- Increments PC when set (inAddresss + 1)
-    signal PC_inAddress   : STD_LOGIC_VECTOR(31 downto 0);      -- Source of new PC value or base for +1
-    signal PC_outAddress  : STD_LOGIC_VECTOR(11 downto 0);      -- Current PC output
+    SIGNAL PC_writeEn    : STD_LOGIC;                     -- Loads PC with inAddresss when set
+    SIGNAL PC_enable     : STD_LOGIC;                     -- Increments PC when set (inAddresss + 1)
+    SIGNAL PC_inAddress  : STD_LOGIC_VECTOR(31 DOWNTO 0); -- Source of new PC value or base for +1
+    SIGNAL PC_outAddress : STD_LOGIC_VECTOR(11 DOWNTO 0); -- Current PC output
 
     ----Memory
-    signal MEM_writeEn : STD_LOGIC;  -- Asserted to perform write on falling edge (e.g., STD, PUSH)
-    signal MEM_readEn : STD_LOGIC;   -- Asserted to perform read on rising edge (e.g., LDD, POP, RTI)
-    signal MEM_address_from_PC       : STD_LOGIC_VECTOR(11 downto 0);  -- PC-based memory address
-    signal MEM_address_from_ALU      : STD_LOGIC_VECTOR(11 downto 0);  -- ALU result from EXE_MEM
-    signal MEM_address_mux_select    : STD_LOGIC;                      -- Selects address source: '0' = PC, '1' = ALU
-    signal MEM_address               : STD_LOGIC_VECTOR(11 downto 0);  -- Final address input to memory
-    signal MEM_data_in : STD_LOGIC_VECTOR(31 downto 0);  -- Data to be stored in memory (e.g., for STD, PUSH)
-    signal MEM_data_out                    : STD_LOGIC_VECTOR(31 downto 0);  -- Output of memory
-    signal MEM_data_out_mux_select         : STD_LOGIC;                      -- Select between routing to IF/ID or MEM/WB
+    SIGNAL MEM_writeEn             : STD_LOGIC;                     -- Asserted to perform write on falling edge (e.g., STD, PUSH)
+    SIGNAL MEM_readEn              : STD_LOGIC;                     -- Asserted to perform read on rising edge (e.g., LDD, POP, RTI)
+    SIGNAL MEM_address_from_PC     : STD_LOGIC_VECTOR(11 DOWNTO 0); -- PC-based memory address
+    SIGNAL MEM_address_from_ALU    : STD_LOGIC_VECTOR(11 DOWNTO 0); -- ALU result from EXE_MEM
+    SIGNAL MEM_address_mux_select  : STD_LOGIC;                     -- Selects address source: '0' = PC, '1' = ALU
+    SIGNAL MEM_address             : STD_LOGIC_VECTOR(11 DOWNTO 0); -- Final address input to memory
+    SIGNAL MEM_data_in             : STD_LOGIC_VECTOR(31 DOWNTO 0); -- Data to be stored in memory (e.g., for STD, PUSH)
+    SIGNAL MEM_data_out            : STD_LOGIC_VECTOR(31 DOWNTO 0); -- Output of memory
+    SIGNAL MEM_data_out_mux_select : STD_LOGIC := '0';              -- Select between NOP and Instruction to IF/ID
+    SIGNAL MEM_Mux_data_out        : STD_LOGIC_VECTOR(31 DOWNTO 0); -- Mux output to IF/ID
+    ----Fetch Decode
 
+    SIGNAL IF_ID_Write           : STD_LOGIC;
+    SIGNAL MemDest               : STD_LOGIC;
+    SIGNAL IF_ID_Instruction_out : STD_LOGIC_VECTOR(31 DOWNTO 0);
+    SIGNAL IF_ID_PC_out          : STD_LOGIC_VECTOR(11 DOWNTO 0);
 
+    ---- Register File
+    SIGNAL Reg_Write_En_1     : STD_LOGIC;
+    SIGNAL Reg_Write_En_2     : STD_LOGIC;
+    SIGNAL read_reg1_address  : STD_LOGIC_VECTOR(2 DOWNTO 0) := IF_ID_Instruction_out(22 DOWNTO 20);
+    SIGNAL read_reg2_address  : STD_LOGIC_VECTOR(2 DOWNTO 0) := IF_ID_Instruction_out(19 DOWNTO 17);
+    SIGNAL write_reg1_address : STD_LOGIC_VECTOR(2 DOWNTO 0);
+    SIGNAL write_reg2_address : STD_LOGIC_VECTOR(2 DOWNTO 0);
+    SIGNAL write_reg1_data    : STD_LOGIC_VECTOR(31 DOWNTO 0);
+    SIGNAL write_reg2_data    : STD_LOGIC_VECTOR(31 DOWNTO 0);
+    SIGNAL Read_reg1_data     : STD_LOGIC_VECTOR(31 DOWNTO 0);
+    SIGNAL Read_reg2_data     : STD_LOGIC_VECTOR(31 DOWNTO 0);
+    ---- Decode Execute
+    SIGNAL EX                     : STD_LOGIC;
+    SIGNAL M_for_decode_execute   : STD_LOGIC;
+    SIGNAL WB_for_decode_execute  : STD_LOGIC;
+    SIGNAL Off_Imm_decode_execute : STD_LOGIC_VECTOR(31 DOWNTO 0) :=
+    (15 DOWNTO 0 => IF_ID_Instruction_out(19)) & IF_ID_Instruction_out(19 DOWNTO 4);--sign extended
 
-
-
+    SIGNAL M_for_execute_decode  : STD_LOGIC;
+    SIGNAL WB_for_execute_decode : STD_LOGIC;
+    SIGNAL ID_EX_PC_out          : STD_LOGIC_VECTOR(11 DOWNTO 0);
+    SIGNAL ID_EX_Index_out       : STD_LOGIC;
+    SIGNAL ID_EXE_readData1_out  : STD_LOGIC_VECTOR(31 DOWNTO 0);
+    SIGNAL ID_EXE_readData2_out  : STD_LOGIC_VECTOR(31 DOWNTO 0);
+    SIGNAL ID_EXE_Rsrc1_out      : STD_LOGIC_VECTOR(2 DOWNTO 0);
+    SIGNAL ID_EXE_Rsrc2_out      : STD_LOGIC_VECTOR(2 DOWNTO 0);
+    SIGNAL ID_EXE_Rdest_out      : STD_LOGIC_VECTOR(2 DOWNTO 0);
 
 BEGIN
+    WITH MEM_data_out_mux_select SELECT
+        MEM_Mux_data_out <= MEM_data_out WHEN '0',
+        (OTHERS => '0') WHEN OTHERS; --like NOP , this is a mux between NOP and data out of Memory
+
+    WITH MEM_address_mux_select SELECT
+        MEM_address <= PC_outAddress WHEN '0',
+        result WHEN '1',
+        (OTHERS => '0') WHEN OTHERS;
+
     ------------------------------- Start pipeline registers Instantiation -----------------------------------------------
     Fetch_Decode_REG : Fetch_Decode
     PORT MAP(
         clk                 => clk,
         reset               => reset,
-        fetched_instruction => fetched_instruction,
-        PC                  => PC,
+        fetched_instruction => MEM_Mux_data_out,
+        PC                  => PC_outAddress,
         IF_ID_Write         => IF_ID_Write,
         MemDest             => MemDest,
-        IF_ID_Instruction   => IF_ID_Instruction_sig,
-        IF_ID_PC            => IF_ID_PC_sig
+        IF_ID_Instruction   => IF_ID_Instruction_out,
+        IF_ID_PC            => IF_ID_PC_out
     );
 
     ----------------------------------------------------------
@@ -211,25 +261,25 @@ BEGIN
         clk              => clk,
         reset            => reset,
         EX               => EX,
-        M                => M,
-        WB               => WB,
-        PC               => IF_ID_PC_sig,
-        index            => index,
-        readData1        => readData1,
-        readData2        => readData2,
-        Rsrc1            => Rsrc1,
-        Rsrc2            => Rsrc2,
-        Rdest            => Rdest,
-        Opcode           => Opcode,
-        Off_Imm          => Off_Imm,
-        ID_EXE_M         => ID_EXE_M_sig,
-        ID_EXE_WB        => ID_EXE_WB_sig,
-        ID_EXE_PC        => ID_EXE_PC_sig,
-        ID_EXE_index     => ID_EXE_index_sig,
-        ID_EXE_readData1 => ID_EXE_readData1_sig,
-        ID_EXE_readData2 => ID_EXE_readData2_sig,
-        ID_EXE_Rsrc1     => ID_EXE_Rsrc1_sig,
-        ID_EXE_Rsrc2     => ID_EXE_Rsrc2_sig,
+        M                => M_for_decode_execute,
+        WB               => WB_for_decode_execute,
+        PC               => IF_ID_PC_out,
+        index            => IF_ID_Instruction_out(25),
+        readData1        => Read_reg1_data,
+        readData2        => Read_reg2_data,
+        Rsrc1            => read_reg1_address,
+        Rsrc2            => read_reg2_address,
+        Rdest            => IF_ID_Instruction_out(25 DOWNTO 23),
+        Opcode           => IF_ID_Instruction_out(31 DOWNTO 26),
+        Off_Imm          => Off_Imm_decode_execute,
+        ID_EXE_M         => M_for_execute_decode,
+        ID_EXE_WB        => WB_for_execute_decode,
+        ID_EXE_PC        => ID_EX_PC_out,
+        ID_EXE_index     => ID_EX_Index_out,
+        ID_EXE_readData1 => ID_EXE_readData1_out,
+        ID_EXE_readData2 => ID_EXE_readData2_out,
+        ID_EXE_Rsrc1     => ID_EXE_Rsrc1_out,
+        ID_EXE_Rsrc2     => ID_EXE_Rsrc2_out,
         ID_EXE_Rdest     => ID_EXE_Rdest_sig,
         ID_EXE_Opcode    => ID_EXE_Opcode_sig,
         ID_EXE_Off_Imm   => ID_EXE_Off_Imm_sig
@@ -275,16 +325,16 @@ BEGIN
     PORT MAP(
         clk         => clk,
         reset       => reset,
-        read_reg1   => read_reg1,
-        read_reg2   => read_reg2,
-        write_reg1  => write_reg1,
-        write_reg2  => write_reg2,
-        write_data1 => write_data1,
-        write_data2 => write_data2,
-        RegWrite1   => RegWrite1,
-        RegWrite2   => RegWrite2,
-        read_data1  => read_data1,
-        read_data2  => read_data2
+        read_reg1   => read_reg1_address,
+        read_reg2   => read_reg2_address,
+        write_reg1  => write_reg1_address,
+        write_reg2  => write_reg2_address,
+        write_data1 => write_reg1_data,
+        write_data2 => write_reg2_data,
+        RegWrite1   => Reg_Write_En_1,
+        RegWrite2   => Reg_Write_En_2,
+        read_data1  => Read_reg1_data,
+        read_data2  => Read_reg2_data
     );
     ------------------------------- End Registers File Instantiation -----------------------------------------------
     ------------------------------- Start Memory Instantiation -----------------------------------------------
@@ -296,12 +346,24 @@ BEGIN
     PORT MAP(
         clk      => clk,
         reset    => reset,
-        writeEn  => writeEn,
-        address  => address,
-        data_in  => data_in,
-        data_out => data_out
+        writeEn  => MEM_writeEn,
+        address  => MEM_address,
+        readEn   => MEM_readEn,
+        data_in  => MEM_data_in,
+        data_out => MEM_data_out
     );
     ------------------------------- End Memory Instantiation -----------------------------------------------
+    ------------------------------- Start Execute Stage Instantiation -----------------------------------------------
+    EXEC_STAGE : ExecuteStage
+    PORT MAP(
+        clk              => clk,
+        opcode           => opcode,
+        Rsrc1_Data_IF_ID => Rsrc1_Data_IF_ID,
+        result           => result,
+        CCR              => CCR
+    );
+
+    ------------------------------- End  Execute Stage Instantiation -----------------------------------------------
     ------------------------------- Start Program Counter Instantiation -----------------------------------------------
     PC_REG : PC
     GENERIC MAP(
