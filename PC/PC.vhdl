@@ -4,7 +4,7 @@ USE ieee.numeric_std.ALL;
 USE ieee.math_real.ALL;
 ENTITY PC IS
     GENERIC (
-        Address_Bits : INTEGER := 32
+        Address_Bits : INTEGER := 12
     );
     PORT (
         clk        : IN STD_LOGIC;

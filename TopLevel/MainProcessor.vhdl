@@ -137,11 +137,12 @@ ARCHITECTURE rtl OF MainProcessor IS
             Address_bits : INTEGER := 12;
             Data_width   : INTEGER := 32
         );
-        PORT (
+            PORT (
             clk      : IN STD_LOGIC;
             reset    : IN STD_LOGIC;
             writeEn  : IN STD_LOGIC;
             address  : IN STD_LOGIC_VECTOR(Address_bits - 1 DOWNTO 0);
+            readEn   : IN STD_LOGIC;
             data_in  : IN STD_LOGIC_VECTOR(Data_width - 1 DOWNTO 0);
             data_out : OUT STD_LOGIC_VECTOR(Data_width - 1 DOWNTO 0)
         );
@@ -152,20 +153,41 @@ ARCHITECTURE rtl OF MainProcessor IS
 
     COMPONENT PC
         GENERIC (
-            Address_Bits : INTEGER := 32
+            Address_Bits : INTEGER := 12
         );
-        PORT (
+            PORT (
             clk        : IN STD_LOGIC;
             reset      : IN STD_LOGIC;
             enable     : IN STD_LOGIC;
+            writeEn    : IN STD_LOGIC;
             inAddresss : IN STD_LOGIC_VECTOR(Address_Bits - 1 DOWNTO 0);
             outAddress : OUT STD_LOGIC_VECTOR(Address_Bits - 1 DOWNTO 0)
         );
     END COMPONENT;
     ------------------------------- End Program Counter Declaration -----------------------------------------------
     ------------------------------- Signal Declaration -----------------------------------------------
-    SIGNAL IF_ID_Instruction_sig : STD_LOGIC_VECTOR(31 DOWNTO 0);
-    SIGNAL IF_ID_PC_sig          : STD_LOGIC_VECTOR(11 DOWNTO 0);
+
+    ----PC
+    signal PC_writeEn     : STD_LOGIC;                          -- Loads PC with inAddresss when set
+    signal PC_enable      : STD_LOGIC;                          -- Increments PC when set (inAddresss + 1)
+    signal PC_inAddress   : STD_LOGIC_VECTOR(31 downto 0);      -- Source of new PC value or base for +1
+    signal PC_outAddress  : STD_LOGIC_VECTOR(11 downto 0);      -- Current PC output
+
+    ----Memory
+    signal MEM_writeEn : STD_LOGIC;  -- Asserted to perform write on falling edge (e.g., STD, PUSH)
+    signal MEM_readEn : STD_LOGIC;   -- Asserted to perform read on rising edge (e.g., LDD, POP, RTI)
+    signal MEM_address_from_PC       : STD_LOGIC_VECTOR(11 downto 0);  -- PC-based memory address
+    signal MEM_address_from_ALU      : STD_LOGIC_VECTOR(11 downto 0);  -- ALU result from EXE_MEM
+    signal MEM_address_mux_select    : STD_LOGIC;                      -- Selects address source: '0' = PC, '1' = ALU
+    signal MEM_address               : STD_LOGIC_VECTOR(11 downto 0);  -- Final address input to memory
+    signal MEM_data_in : STD_LOGIC_VECTOR(31 downto 0);  -- Data to be stored in memory (e.g., for STD, PUSH)
+    signal MEM_data_out                    : STD_LOGIC_VECTOR(31 downto 0);  -- Output of memory
+    signal MEM_data_out_mux_select         : STD_LOGIC;                      -- Select between routing to IF/ID or MEM/WB
+
+
+
+
+
 
 BEGIN
     ------------------------------- Start pipeline registers Instantiation -----------------------------------------------
@@ -283,14 +305,15 @@ BEGIN
     ------------------------------- Start Program Counter Instantiation -----------------------------------------------
     PC_REG : PC
     GENERIC MAP(
-        Address_Bits => 32
+        Address_Bits => 12
     )
     PORT MAP(
         clk        => clk,
         reset      => reset,
-        enable     => enable,
-        inAddresss => inAddresss,
-        outAddress => outAddress
+        enable     => PC_enable,
+        writeEn    => PC_writeEn,
+        inAddresss => PC_inAddress,
+        outAddress => PC_outAddress
     );
     ------------------------------- End  Program Counter Instantiation -----------------------------------------------
 
