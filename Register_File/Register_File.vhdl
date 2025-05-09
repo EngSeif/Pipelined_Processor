@@ -26,7 +26,7 @@ ARCHITECTURE Behavioral OF Register_File IS
     SIGNAL regs : reg_array := (OTHERS => (OTHERS => '0'));
 
 BEGIN
-    PROCESS (clk)
+    PROCESS (clk, reset)
     BEGIN
 
 

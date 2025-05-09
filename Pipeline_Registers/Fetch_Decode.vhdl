@@ -6,10 +6,10 @@ ENTITY IF_ID_Register IS
     PORT (
         clk                 : IN STD_LOGIC;
         reset               : IN STD_LOGIC;
-        flush               : IN STD_LOGIC;
-        stall               : IN STD_LOGIC;
         fetched_instruction : IN STD_LOGIC_VECTOR(31 DOWNTO 0);
-        pc_plus_1           : IN STD_LOGIC_VECTOR(31 DOWNTO 0);
+        PC                  : IN STD_LOGIC_VECTOR(11 DOWNTO 0);
+        IF_ID_Write         : IN STD_LOGIC;
+        MemDest             : IN STD_LOGIC;
         -- Outputs to Decode stage
         IF_ID_Instruction : OUT STD_LOGIC_VECTOR(31 DOWNTO 0);
         IF_ID_PC          : OUT STD_LOGIC_VECTOR(31 DOWNTO 0)
@@ -17,28 +17,21 @@ ENTITY IF_ID_Register IS
 END IF_ID_Register;
 
 ARCHITECTURE Behavioral OF IF_ID_Register IS
-    SIGNAL instr_reg : STD_LOGIC_VECTOR(31 DOWNTO 0);
-    SIGNAL pc_reg    : STD_LOGIC_VECTOR(31 DOWNTO 0);
 BEGIN
 
     PROCESS (clk, reset)
     BEGIN
         IF reset = '1' THEN
-            instr_reg <= (OTHERS => '0');
-            pc_reg    <= (OTHERS => '0');
+            IF_ID_Instruction <= (OTHERS => '0');
+            IF_ID_PC          <= (OTHERS => '0');
+
         ELSIF rising_edge(clk) THEN
-            IF flush = '1' THEN
-                instr_reg <= (OTHERS => '0'); -- Flush (NOP or bubble)
-                pc_reg    <= (OTHERS => '0');
-            ELSIF stall = '0' THEN
-                instr_reg <= fetched_instruction;
-                pc_reg    <= pc_plus_1;
-            END IF;
+            if MemDest = '1' and IF_ID_Write = '1' then
+                IF_ID_Instruction <= fetched_instruction;
+                IF_ID_PC          <= PC;
+
+            end if;
+
         END IF;
     END PROCESS;
-
-    -- Output assignments
-    IF_ID_Instruction <= instr_reg;
-    IF_ID_PC          <= pc_reg;
-
 END Behavioral;
