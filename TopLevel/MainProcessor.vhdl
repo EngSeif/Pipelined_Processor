@@ -89,7 +89,6 @@ ARCHITECTURE rtl OF MainProcessor IS
             Rsrc1      : IN STD_LOGIC_VECTOR(2 DOWNTO 0);
             Rsrc2      : IN STD_LOGIC_VECTOR(2 DOWNTO 0);
             Rdest      : IN STD_LOGIC_VECTOR(2 DOWNTO 0);
-            Opcode     : IN STD_LOGIC_VECTOR(5 DOWNTO 0);
             Off_Imm    : IN STD_LOGIC_VECTOR(31 DOWNTO 0);
 
             EXE_MEM_M  : OUT STD_LOGIC;
@@ -162,7 +161,7 @@ ARCHITECTURE rtl OF MainProcessor IS
         PORT (
             clk              : IN STD_LOGIC;
             opcode           : IN STD_LOGIC_VECTOR(5 DOWNTO 0);
-            Rsrc1_Data_IF_ID : IN STD_LOGIC_VECTOR(31 DOWNTO 0);
+            Rsrc1_Data_ID_EXE : IN STD_LOGIC_VECTOR(31 DOWNTO 0);
             result           : OUT STD_LOGIC_VECTOR(31 DOWNTO 0);
             CCR              : OUT STD_LOGIC_VECTOR(2 DOWNTO 0) -- Z(0), N(1), C(2)
         );
@@ -352,7 +351,7 @@ BEGIN
         (OTHERS => '0') WHEN OTHERS;--! register file muxes 
 
     WITH MEM_WB_WB_for_register_file(1) SELECT
-    write_reg2_data <= Final_out_data_to_write_Back_to_register_File WHEN '0',
+    write_reg1_data <= Final_out_data_to_write_Back_to_register_File WHEN '0',
         MEM_WB_readData1_out WHEN '1',
         (OTHERS => '0') WHEN OTHERS;--! register file muxes 
 
@@ -423,19 +422,18 @@ BEGIN
         Rsrc1              => ID_EXE_Rsrc1_out,
         Rsrc2              => ID_EXE_Rsrc2_out,
         Rdest              => ID_EXE_Rdest_out,
-        Opcode             => ID_EXE_Opcode_out,
         Off_Imm            => ID_EXE_Off_Imm_out,
         EXE_MEM_M          => MEM_readEn, --gona make it MEM_readEn for now --!need to check to see which signal is it
         EXE_MEM_WB         => WB_Memory_WriteBack,
-        EXE_MEM_PC         => MEM_address_from_PC,
-        EXE_MEM_index      => EXE_MEM_index_out,
+        EXE_MEM_PC         => MEM_address_from_PC, --!NOT CONNECTED YET
+        EXE_MEM_index      => EXE_MEM_index_out,   --!NOT CONNECTED YET
         EXE_MEM_readData1  => EXE_MEM_readData1_out,
         EXE_MEM_readData2  => EXE_MEM_readData2_out,
         EXE_MEM_ALU_result => EXE_MEM_ALU_result_out,
         EXE_MEM_Rsrc1      => EXE_MEM_Rsrc1_out,
         EXE_MEM_Rsrc2      => EXE_MEM_Rsrc2_out,
         EXE_MEM_Rdest      => EXE_MEM_Rdest_out,
-        EXE_MEM_Off_Imm    => EXE_MEM_Off_Imm_sig
+        EXE_MEM_Off_Imm    => EXE_MEM_Off_Imm_sig --!NOT CONNECTED YET
     );
 
     ----------------------------------------------------------
@@ -502,9 +500,9 @@ BEGIN
         read_reg1   => read_reg1_address,
         read_reg2   => read_reg2_address,
         write_reg1  => write_reg1_address,
-        write_reg2  => write_reg2_address,
+        write_reg2  => MEM_WB_Rsrc1_out,
         write_data1 => write_reg1_data,
-        write_data2 => write_reg2_data,
+        write_data2 => MEM_WB_readData2_out,
         RegWrite1   => MEM_WB_WB_for_register_file(0),
         RegWrite2   => MEM_WB_WB_for_register_file(1),
         read_data1  => Read_reg1_data,
@@ -532,7 +530,7 @@ BEGIN
     PORT MAP(
         clk              => clk,
         opcode           => ID_EXE_Opcode_out,
-        Rsrc1_Data_IF_ID => ID_EXE_Rsrc1_out,
+        Rsrc1_Data_ID_EXE => ID_EXE_Rsrc1_out,
         result           => EXEC_STAGE_Result,
         CCR              => CCR_out
     );
