@@ -4,25 +4,16 @@ USE ieee.numeric_std.ALL;
 
 ENTITY Control_unit IS
     PORT (
-        instruction_bits : IN STD_LOGIC_VECTOR(31 DOWNTO 0); -- Instruction bits
-
-        -- Flags
+        instruction_bits : IN STD_LOGIC_VECTOR(31 DOWNTO 0);
         zero_flag : IN STD_LOGIC;
         carry_flag : IN STD_LOGIC;
         negative_flag : IN STD_LOGIC;
-
-        -- External signals
         Int : IN STD_LOGIC;
         rst : IN STD_LOGIC;
         clk : IN STD_LOGIC;
-
-        -- for stall
-        dst_reg_ex : IN STD_LOGIC_VECTOR(2 DOWNTO 0); -- Destination reg in EX stage
-        is_load_ex : IN STD_LOGIC; -- Is EX instruction a LDD
-        mem_access_ex : IN STD_LOGIC;
-        mem_access_mem : IN STD_LOGIC;
-
-        -- Control outputs
+        opcode_ex : IN STD_LOGIC_VECTOR(5 DOWNTO 0);
+        opcode_mem : IN STD_LOGIC_VECTOR(5 DOWNTO 0);
+        dst_reg_ex : IN STD_LOGIC_VECTOR(2 DOWNTO 0);
         wb_ctrl : OUT STD_LOGIC_VECTOR(1 DOWNTO 0);
         pc_src : OUT STD_LOGIC_VECTOR(1 DOWNTO 0);
         address_sel : OUT STD_LOGIC_VECTOR(1 DOWNTO 0);
@@ -39,124 +30,116 @@ ENTITY Control_unit IS
     );
 END ENTITY Control_unit;
 
--- pc_src       ✅
--- mem_read     ✅
--- mem_write    ✅
--- Address_sel  ✅
--- hlt_flag     ✅
--- reg_write_2  ✅
--- reg_write_1  ✅
--- sp_enable    ✅
--- sp_push      ✅
--- wb_ctrl      ✅
--- Int_Type     ✅
--- stall_flag   (nearly correct i think)
--- flush        (nearly correct i think)
-
 ARCHITECTURE control_arch OF Control_unit IS
-
     CONSTANT OPCODE_WIDTH : INTEGER := 6;
     SIGNAL opcode : STD_LOGIC_VECTOR(OPCODE_WIDTH - 1 DOWNTO 0);
+    SIGNAL mem_access_ex, mem_access_mem : STD_LOGIC;
+
+    -- Opcode constants
+    CONSTANT OP_HLT : STD_LOGIC_VECTOR(5 DOWNTO 0) := "000001";
+    CONSTANT OP_INT : STD_LOGIC_VECTOR(5 DOWNTO 0) := "000100";
+    CONSTANT OP_RET : STD_LOGIC_VECTOR(5 DOWNTO 0) := "000011";
+    CONSTANT OP_RTI : STD_LOGIC_VECTOR(5 DOWNTO 0) := "000101";
+    CONSTANT OP_SWAP : STD_LOGIC_VECTOR(5 DOWNTO 0) := "010101";
+    CONSTANT OP_IN : STD_LOGIC_VECTOR(5 DOWNTO 0) := "010011";
+    CONSTANT OP_PUSH : STD_LOGIC_VECTOR(5 DOWNTO 0) := "011001";
+    CONSTANT OP_POP : STD_LOGIC_VECTOR(5 DOWNTO 0) := "011010";
+    CONSTANT OP_LDD : STD_LOGIC_VECTOR(5 DOWNTO 0) := "100010";
+    CONSTANT OP_STD : STD_LOGIC_VECTOR(5 DOWNTO 0) := "100011";
+    CONSTANT OP_CALL : STD_LOGIC_VECTOR(5 DOWNTO 0) := "100100";
+    CONSTANT OP_JZ : STD_LOGIC_VECTOR(5 DOWNTO 0) := "110000";
+    CONSTANT OP_JN : STD_LOGIC_VECTOR(5 DOWNTO 0) := "110001";
+    CONSTANT OP_JC : STD_LOGIC_VECTOR(5 DOWNTO 0) := "110010";
+    CONSTANT OP_JMP : STD_LOGIC_VECTOR(5 DOWNTO 0) := "110011";
 
 BEGIN
     opcode <= instruction_bits(31 DOWNTO 26);
+    -- Update memory access flags based on opcodes
+    mem_access_ex <= '1' WHEN (opcode_ex = OP_LDD OR opcode_ex = OP_STD OR
+        opcode_ex = OP_PUSH OR opcode_ex = OP_POP OR
+        opcode_ex = OP_CALL OR opcode_ex = OP_RET OR
+        opcode_ex = OP_RTI) ELSE
+        '0';
+
+    mem_access_mem <= '1' WHEN (opcode_mem = OP_LDD OR opcode_mem = OP_STD OR
+        opcode_mem = OP_PUSH OR opcode_mem = OP_POP OR
+        opcode_mem = OP_CALL OR opcode_mem = OP_RET OR
+        opcode_mem = OP_RTI) ELSE
+        '0';
 
     -- PC source control
     PROCESS (opcode, zero_flag, negative_flag, carry_flag, Int)
     BEGIN
         CASE opcode IS
-            WHEN "110000" => -- JZ
-                IF zero_flag = '1' THEN
-                    pc_src <= "01";
-                ELSE
-                    pc_src <= "00";
-                END IF;
-            WHEN "110001" => -- JN
-                IF negative_flag = '1' THEN
-                    pc_src <= "01";
-                ELSE
-                    pc_src <= "00";
-                END IF;
-            WHEN "110010" => -- JC
-                IF carry_flag = '1' THEN
-                    pc_src <= "01";
-                ELSE
-                    pc_src <= "00";
-                END IF;
-            WHEN "110011" => -- JMP
+            WHEN OP_JZ =>
+                pc_src <= "01" WHEN zero_flag = '1' ELSE
+                    "00";
+            WHEN OP_JN =>
+                pc_src <= "01" WHEN negative_flag = '1' ELSE
+                    "00";
+            WHEN OP_JC =>
+                pc_src <= "01" WHEN carry_flag = '1' ELSE
+                    "00";
+            WHEN OP_JMP =>
                 pc_src <= "01";
-            WHEN "000100" => -- INT
+            WHEN OP_INT =>
                 pc_src <= "10";
-            WHEN "000011" | "000101" => -- RET or RTI
+            WHEN OP_RET | OP_RTI =>
                 pc_src <= "11";
             WHEN OTHERS =>
-                IF Int = '1' THEN
-                    pc_src <= "10";
-                ELSE
-                    pc_src <= "00"; -- Default: PC + 1
-                END IF;
+                pc_src <= "10" WHEN Int = '1' ELSE
+                    "00";
         END CASE;
     END PROCESS;
 
     -- Memory read control
     PROCESS (opcode)
     BEGIN
-        CASE opcode IS
-            WHEN "100010" | "011010" | "000011" | "000101" => -- LDD, POP, RET, RTI
-                mem_read <= '1';
-            WHEN OTHERS =>
-                mem_read <= '0';
-        END CASE;
+        mem_read <= '1' WHEN (opcode = OP_LDD OR opcode = OP_POP OR
+            opcode = OP_RET OR opcode = OP_RTI) ELSE
+            '0';
     END PROCESS;
 
     -- Memory write control
     PROCESS (opcode, Int)
     BEGIN
-        CASE opcode IS
-            WHEN "100011" | "011001" | "100100" | "000100" => -- STD, PUSH, CALL, INT
-                mem_write <= '1';
-            WHEN OTHERS =>
-                IF Int = '1' THEN
-                    mem_write <= '1';
-                ELSE
-                    mem_write <= '0';
-                END IF;
-        END CASE;
+        IF opcode = OP_STD OR opcode = OP_PUSH OR
+            opcode = OP_CALL OR opcode = OP_INT THEN
+            mem_write <= '1';
+        ELSE
+            mem_write <= '1' WHEN Int = '1' ELSE
+                '0';
+        END IF;
     END PROCESS;
 
-    -- Writeback control (centralized)
+    -- Writeback control
     PROCESS (opcode)
     BEGIN
         CASE opcode IS
-            WHEN "100011" | "011001" | "100100" | "000100" => -- Memory Write + INT
-                wb_ctrl <= "11";
-            WHEN "010011" => -- IN
-                wb_ctrl <= "10";
-            WHEN "010000" TO "100001" | "100010" => -- Most reg-write instructions
-                wb_ctrl <= "01";
-            WHEN OTHERS =>
-                wb_ctrl <= "00";
+            WHEN OP_STD | OP_PUSH | OP_CALL | OP_INT => wb_ctrl <= "11";
+            WHEN OP_IN => wb_ctrl <= "10";
+            WHEN OP_LDD | OP_SWAP => wb_ctrl <= "01";
+            WHEN OTHERS => wb_ctrl <= "00";
         END CASE;
     END PROCESS;
 
     -- Stack and Address selection
     PROCESS (opcode, Int)
     BEGIN
-        -- Defaults
         sp_enable <= '0';
         sp_push <= '0';
         address_sel <= "00";
 
         CASE opcode IS
-            WHEN "011001" | "100100" | "000100" => -- PUSH, CALL, INT
+            WHEN OP_PUSH | OP_CALL | OP_INT =>
                 address_sel <= "01";
                 sp_enable <= '1';
                 sp_push <= '1';
-            WHEN "011010" | "000011" | "000101" => -- POP, RET, RTI
+            WHEN OP_POP | OP_RET | OP_RTI =>
                 address_sel <= "01";
                 sp_enable <= '1';
                 sp_push <= '0';
-            WHEN "100010" | "100011" => -- LDD, STD
+            WHEN OP_LDD | OP_STD =>
                 address_sel <= "10";
             WHEN OTHERS =>
                 IF Int = '1' THEN
@@ -170,101 +153,60 @@ BEGIN
     -- Register write control
     PROCESS (opcode)
     BEGIN
-        CASE opcode IS
-            WHEN "010000" TO "100001" | "100010" | "010011" => -- NOT to LDM, LDD, IN
-                reg_write_1 <= '1';
-            WHEN OTHERS =>
-                reg_write_1 <= '0';
-        END CASE;
+        reg_write_1 <= '1' WHEN (opcode(5) = '0' OR opcode = OP_LDD OR
+            opcode = OP_IN) ELSE
+            '0';
+        reg_write_2 <= '1' WHEN opcode = OP_SWAP ELSE
+            '0';
     END PROCESS;
 
-    -- Register write for second operand (SWAP)
+    -- HLT and interrupt handling
     PROCESS (opcode)
     BEGIN
-        IF opcode = "010101" THEN -- SWAP
-            reg_write_2 <= '1';
-        ELSE
-            reg_write_2 <= '0';
-        END IF;
+        hlt_flag <= '1' WHEN opcode = OP_HLT ELSE
+            '0';
+        Int_Type <= '1' WHEN opcode = OP_INT ELSE
+            '0';
     END PROCESS;
 
-    -- HLT instruction
-    PROCESS (opcode)
+    -- Stall flag handling (improved)
+    PROCESS (opcode_ex, opcode_mem, opcode, Int, zero_flag, negative_flag, carry_flag)
     BEGIN
-        IF opcode = "000001" THEN -- HLT
-            hlt_flag <= '1';
-        ELSE
-            hlt_flag <= '0';
-        END IF;
-    END PROCESS;
-
-    -- INT_TYPE instruction
-    PROCESS (opcode)
-    BEGIN
-        IF opcode = "000100" THEN -- INT SOFTWARE
-            Int_Type <= '1';
-        ELSIF (Int = '1') THEN
-            Int_Type <= '0';
-        END IF;
-    END PROCESS;
-
-    -- Stall flag handling
-    PROCESS (is_load_ex, dst_reg_ex, opcode, mem_access_ex, mem_access_mem, Int, zero_flag, negative_flag, carry_flag)
-    BEGIN
-        -- Load-Use Data Hazard
-        IF (is_load_ex = '1') AND
-            ((dst_reg_ex = instruction_bits(22 DOWNTO 20)) OR (dst_reg_ex = instruction_bits(19 DOWNTO 17))) THEN
-            stall_flag <= '1'; -- Data hazard detected → Stall pipeline
-
-            -- Structural Hazard: Instruction fetch vs memory access
-        ELSIF (mem_access_ex = '1') OR (mem_access_mem = '1') THEN
+        -- LOAD USE Handling
+        -- Checks IF the instruction IN the EX stage IS a load (LDD).
+        -- Compares the destination REGISTER OF the LDD (IN EX stage) WITH the source REGISTER OF the current instruction (IN ID stage).
+        IF (opcode_ex = OP_LDD AND (dst_reg_ex = instruction_bits(25 DOWNTO 23))) THEN
             stall_flag <= '1';
 
-            -- Control Hazard (branch/jump)
-        ELSIF (opcode = "110011") THEN -- JMP (always taken)
-            stall_flag <= '1';
-        ELSIF (opcode = "110000" AND zero_flag = '1') THEN -- JZ (if Z=1)
-            stall_flag <= '1';
-        ELSIF (opcode = "110001" AND negative_flag = '1') THEN -- JN (if N=1)
-            stall_flag <= '1';
-        ELSIF (opcode = "110010" AND carry_flag = '1') THEN -- JC (if C=1)
+            -- Structural Hazard Handling
+        ELSIF (opcode_ex = OP_STD OR opcode_ex = OP_LDD OR opcode_ex = OP_CALL OR
+            opcode_ex = OP_PUSH OR opcode_ex = OP_POP OR opcode_ex = OP_RTI OR
+            opcode_ex = OP_RET OR opcode_ex = OP_INT) THEN
             stall_flag <= '1';
 
-            -- Interrupt Stall (Hardware OR Software)
-        ELSIF (Int = '1' OR opcode = "000100") THEN
+            -- Branching Hazard Handling
+        ELSIF (opcode = OP_JMP OR
+            (opcode = OP_JZ AND zero_flag = '1') OR
+            (opcode = OP_JN AND negative_flag = '1') OR
+            (opcode = OP_JC AND carry_flag = '1')) THEN
             stall_flag <= '1';
-
-            -- No hazard → Proceed normally
+            -- Interrupt handling Handling
+        ELSIF (Int = '1' OR opcode = OP_INT) THEN
+            stall_flag <= '1';
         ELSE
             stall_flag <= '0';
         END IF;
-
-        IF (Int = '1') THEN
-            stall_flag <= '1';
-        END IF;
     END PROCESS;
 
-    -- Flush control 
-    PROCESS (opcode, zero_flag, negative_flag, carry_flag, Int)
+    -- Flush control
+    PROCESS (opcode, zero_flag, negative_flag, carry_flag)
     BEGIN
-        flush <= '0'; -- Default: no flush
-
-        -- 1. Branch/Jump Taken
-        IF (opcode = "110011") OR -- JMP (unconditional)
-            (opcode = "110000" AND zero_flag = '1') OR -- JZ (Z=1)
-            (opcode = "110001" AND negative_flag = '1') OR -- JN (N=1)
-            (opcode = "110010" AND carry_flag = '1') THEN -- JC (C=1)
-            flush <= '1';
-        END IF;
-
-        -- Check Back on it
-        -- -- 2. Interrupts (Software/Hardware)
-        -- IF (opcode = "000100" OR Int = '1') THEN -- INT or hardware interrupt
-        --     flush <= '1';
-        -- END IF;
-
-        -- 3. Returns (RET/RTI)
-        IF (opcode = "000011" OR opcode = "000101") THEN -- RET or RTI
+        flush <= '0';
+        IF (opcode = OP_JMP) OR
+            (opcode = OP_JZ AND zero_flag = '1') OR
+            (opcode = OP_JN AND negative_flag = '1') OR
+            (opcode = OP_JC AND carry_flag = '1') OR
+            (opcode = OP_RET OR opcode = OP_RTI) THEN
             flush <= '1';
         END IF;
     END PROCESS;
