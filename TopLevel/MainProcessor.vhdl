@@ -287,8 +287,7 @@ ARCHITECTURE rtl OF MainProcessor IS
     SIGNAL EX                     : STD_LOGIC;
     SIGNAL M_for_decode_execute   : STD_LOGIC_VECTOR(1 DOWNTO 0);
     SIGNAL WB_for_decode_execute  : STD_LOGIC_VECTOR(1 DOWNTO 0);
-    SIGNAL Off_Imm_decode_execute : STD_LOGIC_VECTOR(31 DOWNTO 0) :=
-    (15 DOWNTO 0 => IF_ID_Instruction_out(19)) & IF_ID_Instruction_out(19 DOWNTO 4);--sign extended
+    SIGNAL Off_Imm_decode_execute : STD_LOGIC_VECTOR(31 DOWNTO 0);
 
     SIGNAL M_for_execute_memory  : STD_LOGIC_VECTOR(1 DOWNTO 0);
     SIGNAL WB_for_execute_memory : STD_LOGIC_VECTOR(1 DOWNTO 0);
@@ -343,8 +342,8 @@ ARCHITECTURE rtl OF MainProcessor IS
     SIGNAL CCR_out           : STD_LOGIC_VECTOR(2 DOWNTO 0);
 
 BEGIN
-    Off_Imm_decode_execute <=
-        (15 DOWNTO 0 => IF_ID_Instruction_out(19)) & IF_ID_Instruction_out(19 DOWNTO 4);--sign extended
+    Off_Imm_decode_execute <= (15 DOWNTO 0 => IF_ID_Instruction_out(19)) & IF_ID_Instruction_out(19 DOWNTO 4);
+
 
     WITH MEM_data_out_mux_select SELECT
         MEM_Mux_data_out <= MEM_data_out WHEN '0',
