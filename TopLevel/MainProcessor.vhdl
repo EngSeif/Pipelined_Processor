@@ -264,8 +264,8 @@ ARCHITECTURE rtl OF MainProcessor IS
     SIGNAL IF_ID_PC_out          : STD_LOGIC_VECTOR(11 DOWNTO 0);
 
     ---- Register File
-    SIGNAL Reg_Write_En_1     : STD_LOGIC;
-    SIGNAL Reg_Write_En_2     : STD_LOGIC;
+    -- SIGNAL Reg_Write_En_1     : STD_LOGIC;
+    -- SIGNAL Reg_Write_En_2     : STD_LOGIC; --! it will come from the Mem WB register
     SIGNAL read_reg1_address  : STD_LOGIC_VECTOR(2 DOWNTO 0) := IF_ID_Instruction_out(22 DOWNTO 20);
     SIGNAL read_reg2_address  : STD_LOGIC_VECTOR(2 DOWNTO 0) := IF_ID_Instruction_out(19 DOWNTO 17);
     SIGNAL write_reg1_address : STD_LOGIC_VECTOR(2 DOWNTO 0);
@@ -306,6 +306,19 @@ ARCHITECTURE rtl OF MainProcessor IS
     SIGNAL EXE_MEM_Rdest_out      : STD_LOGIC_VECTOR(2 DOWNTO 0);
     SIGNAL EXE_MEM_Off_Imm_sig    : STD_LOGIC_VECTOR(31 DOWNTO 0);
     ----Memory Write Back
+    SIGNAL MEM_WB_WB_for_register_file : STD_LOGIC_VECTOR(1 DOWNTO 0);
+    SIGNAL MEM_WB_readData1_out        : STD_LOGIC_VECTOR(31 DOWNTO 0);
+    SIGNAL MEM_WB_readData2_out        : STD_LOGIC_VECTOR(31 DOWNTO 0);
+    SIGNAL MEM_WB_memoryData_out       : STD_LOGIC_VECTOR(31 DOWNTO 0);
+    SIGNAL MEM_WB_ALU_result_out       : STD_LOGIC_VECTOR(31 DOWNTO 0);
+    SIGNAL MEM_WB_Rsrc1_out            : STD_LOGIC_VECTOR(2 DOWNTO 0);
+    SIGNAL MEM_WB_Rsrc2_out            : STD_LOGIC_VECTOR(2 DOWNTO 0);
+    SIGNAL MEM_WB_Rdest_out            : STD_LOGIC_VECTOR(2 DOWNTO 0);
+
+    ---- WB Data Muxes
+    SIGNAL Final_out_data_to_write_Back_to_register_File : STD_LOGIC_VECTOR(31 DOWNTO 0);
+    ---- control signals
+    SIGNAL wb_ctrl : STD_LOGIC_VECTOR(1 DOWNTO 0);
 
     ---- Execute_Stage
     SIGNAL EXEC_STAGE_Result : STD_LOGIC_VECTOR(31 DOWNTO 0);
@@ -315,12 +328,28 @@ BEGIN
     WITH MEM_data_out_mux_select SELECT
         MEM_Mux_data_out <= MEM_data_out WHEN '0',
         (OTHERS => '0') WHEN OTHERS; --like NOP , this is a mux between NOP and data out of Memory
+    -- before IF/ID mux 
 
     WITH MEM_address_mux_select SELECT
         MEM_address <= PC_outAddress WHEN '0',
         EXEC_STAGE_Result WHEN '1',
-        (OTHERS => '0') WHEN OTHERS;
+        (OTHERS => '0') WHEN OTHERS; -- memory address mux either pc or immediate
 
+    WITH MEM_WB_WB_for_register_file(1) SELECT
+    write_reg1_address <= MEM_WB_Rdest_out WHEN '0',
+        MEM_WB_Rsrc2_out WHEN '1',
+        (OTHERS => '0') WHEN OTHERS;--! register file muxes 
+
+    WITH MEM_WB_WB_for_register_file(1) SELECT
+    write_reg2_data <= Final_out_data_to_write_Back_to_register_File WHEN '0',
+        MEM_WB_readData1_out WHEN '1',
+        (OTHERS => '0') WHEN OTHERS;--! register file muxes 
+
+    WITH wb_ctrl SELECT
+        Final_out_data_to_write_Back_to_register_File <= MEM_WB_ALU_result_out WHEN "00",
+        in_port WHEN "01",
+        MEM_WB_ALU_result_out WHEN "10",
+        (OTHERS => '0') WHEN OTHERS; -- -- what to Write Back Mux
     ------------------------------- Start pipeline registers Instantiation -----------------------------------------------
     Fetch_Decode_REG : Fetch_Decode
     PORT MAP(
@@ -400,30 +429,30 @@ BEGIN
 
     ----------------------------------------------------------
     ----------------------------------------------------------
-    MWB_STAGE : Memory_Writeback
+    Memory_WriteBack_REG : Memory_Writeback
     PORT MAP(
         clk               => clk,
         reset             => reset,
-        WB                => WB,
-        readData1         => readData1,
-        readData2         => readData2,
-        memoryData        => memoryData,
-        ALU_result        => ALU_result,
-        Rsrc1             => Rsrc1,
-        Rsrc2             => Rsrc2,
-        Rdest             => Rdest,
-        MEM_WB_WB         => MEM_WB_WB,
-        MEM_WB_readData1  => MEM_WB_readData1,
-        MEM_WB_readData2  => MEM_WB_readData2,
-        MEM_WB_memoryData => MEM_WB_memoryData,
-        MEM_WB_ALU_result => MEM_WB_ALU_result,
-        MEM_WB_Rsrc1      => MEM_WB_Rsrc1,
-        MEM_WB_Rsrc2      => MEM_WB_Rsrc2,
-        MEM_WB_Rdest      => MEM_WB_Rdest
+        WB                => WB_Memory_WriteBack,
+        readData1         => EXE_MEM_readData1_out,
+        readData2         => EXE_MEM_readData2_out,
+        memoryData        => MEM_data_out,
+        ALU_result        => EXE_MEM_ALU_result_out,
+        Rsrc1             => EXE_MEM_Rsrc1_out,
+        Rsrc2             => EXE_MEM_Rsrc2_out,
+        Rdest             => EXE_MEM_Rdest_out,
+        MEM_WB_WB         => MEM_WB_WB_for_register_file,
+        MEM_WB_readData1  => MEM_WB_readData1_out,
+        MEM_WB_readData2  => MEM_WB_readData2_out,
+        MEM_WB_memoryData => MEM_WB_memoryData_out,
+        MEM_WB_ALU_result => MEM_WB_ALU_result_out,
+        MEM_WB_Rsrc1      => MEM_WB_Rsrc1_out,
+        MEM_WB_Rsrc2      => MEM_WB_Rsrc2_out,
+        MEM_WB_Rdest      => MEM_WB_Rdest_out
     );
     ------------------------------- End pipeline Registers Instantiation -----------------------------------------------
     ------------------------------- Start Control Unit Instantiation -----------------------------------------------
-    CU : Control_unit
+    Control_Unit_REG : Control_unit
     PORT MAP(
         Int              => interrupt_port,
         rst              => reset,
@@ -432,9 +461,9 @@ BEGIN
         zero_flag        => CCR_out(0),
         carry_flag       => CCR_out(2),
         negative_flag    => CCR_out(1),
-        dst_reg_ex       => dst_reg_ex,
-        is_load_ex       => is_load_ex,
-        mem_access_ex    => mem_access_ex,
+        dst_reg_ex       => ID_EXE_Rdest_out,
+        is_load_ex       => is_load_ex, --! idk what to do
+        mem_access_ex    => M_for_decode_execute,
         mem_access_mem   => mem_access_mem,
         wb_ctrl          => wb_ctrl,
         pc_src           => pc_src,
@@ -465,8 +494,8 @@ BEGIN
         write_reg2  => write_reg2_address,
         write_data1 => write_reg1_data,
         write_data2 => write_reg2_data,
-        RegWrite1   => Reg_Write_En_1,
-        RegWrite2   => Reg_Write_En_2,
+        RegWrite1   => MEM_WB_WB_for_register_file(0),
+        RegWrite2   => MEM_WB_WB_for_register_file(1),
         read_data1  => Read_reg1_data,
         read_data2  => Read_reg2_data
     );
