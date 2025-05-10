@@ -237,6 +237,17 @@ ARCHITECTURE rtl OF MainProcessor IS
     END COMPONENT;
 
     ------------------------------- End Control Unit Declaration -----------------------------------------------
+    ------------------------------- start Latch Unit Declaration -----------------------------------------------
+    COMPONENT Latch_Unit
+        PORT (
+            enable      : IN STD_LOGIC;
+            reset       : IN STD_LOGIC;
+            input_latch : IN STD_LOGIC_VECTOR(31 DOWNTO 0);
+            output_port : OUT STD_LOGIC_VECTOR(31 DOWNTO 0)
+        );
+    END COMPONENT;
+
+    ------------------------------- End Latch Unit Declaration -----------------------------------------------
     ------------------------------- Signal Declaration -----------------------------------------------
 
     ----PC
@@ -541,5 +552,15 @@ BEGIN
         outAddress => PC_outAddress
     );
     ------------------------------- End  Program Counter Instantiation -----------------------------------------------
+    ------------------------------- Start Latch Unit  Instantiation -----------------------------------------------
+    LATCH_INST : Latch_Unit
+    PORT MAP(
+        enable      => enable,
+        reset       => reset,
+        input_latch => MEM_WB_readData1_out,
+        output_port => out_Port
+    );
+
+    ------------------------------- End  Latch Unit Instantiation -----------------------------------------------
 
 END ARCHITECTURE;
