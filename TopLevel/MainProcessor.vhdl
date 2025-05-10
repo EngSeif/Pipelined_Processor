@@ -256,10 +256,10 @@ ARCHITECTURE rtl OF MainProcessor IS
     ----Memory
     -- SIGNAL MEM_writeEn             : STD_LOGIC; -- Asserted to perform write on falling edge (e.g., STD, PUSH)
     -- SIGNAL MEM_readEn              : STD_LOGIC; -- Asserted to perform read on rising edge (e.g., LDD, POP, RTI)
-    SIGNAL MEM_Ctrl                : STD_LOGIC_VECTOR(1 DOWNTO 0);
+    SIGNAL MEM_Ctrl                : STD_LOGIC_VECTOR(1 DOWNTO 0) := "10";--!for testinnggg
     SIGNAL MEM_address_from_PC     : STD_LOGIC_VECTOR(11 DOWNTO 0);--!do we really need it? -- PC-based memory address
     SIGNAL MEM_address_from_ALU    : STD_LOGIC_VECTOR(11 DOWNTO 0); -- ALU result from EXE_MEM
-    SIGNAL MEM_address_mux_select  : STD_LOGIC;                     -- Selects address source: '0' = PC, '1' = ALU
+    SIGNAL MEM_address_mux_select  : STD_LOGIC := '0';              -- Selects address source: '0' = PC, '1' = ALU
     SIGNAL MEM_address             : STD_LOGIC_VECTOR(11 DOWNTO 0); -- Final address input to memory
     SIGNAL MEM_data_in             : STD_LOGIC_VECTOR(31 DOWNTO 0); -- Data to be stored in memory (e.g., for STD, PUSH)
     SIGNAL MEM_data_out            : STD_LOGIC_VECTOR(31 DOWNTO 0); -- Output of memory
@@ -267,8 +267,8 @@ ARCHITECTURE rtl OF MainProcessor IS
     SIGNAL MEM_Mux_data_out        : STD_LOGIC_VECTOR(31 DOWNTO 0); -- Mux output to IF/ID
     ----Fetch Decode
 
-    SIGNAL IF_ID_Write           : STD_LOGIC;
-    SIGNAL MemDest               : STD_LOGIC;
+    SIGNAL IF_ID_Write           : STD_LOGIC := '1';--! for testing
+    SIGNAL MemDest               : STD_LOGIC := '1';--! for testing
     SIGNAL IF_ID_Instruction_out : STD_LOGIC_VECTOR(31 DOWNTO 0);
     SIGNAL IF_ID_PC_out          : STD_LOGIC_VECTOR(11 DOWNTO 0);
 
@@ -287,8 +287,7 @@ ARCHITECTURE rtl OF MainProcessor IS
     SIGNAL EX                     : STD_LOGIC;
     SIGNAL M_for_decode_execute   : STD_LOGIC_VECTOR(1 DOWNTO 0);
     SIGNAL WB_for_decode_execute  : STD_LOGIC_VECTOR(1 DOWNTO 0);
-    SIGNAL Off_Imm_decode_execute : STD_LOGIC_VECTOR(31 DOWNTO 0) :=
-    (15 DOWNTO 0 => IF_ID_Instruction_out(19)) & IF_ID_Instruction_out(19 DOWNTO 4);--sign extended
+    SIGNAL Off_Imm_decode_execute : STD_LOGIC_VECTOR(31 DOWNTO 0);
 
     SIGNAL M_for_execute_memory  : STD_LOGIC_VECTOR(1 DOWNTO 0);
     SIGNAL WB_for_execute_memory : STD_LOGIC_VECTOR(1 DOWNTO 0);
@@ -538,7 +537,7 @@ BEGIN
         writeEn  => MEM_Ctrl(0),
         address  => MEM_address,
         readEn   => MEM_Ctrl(1),
-        data_in  => MEM_data_in,
+        data_in  => MEM_data_in, --! needs to be connected
         data_out => MEM_data_out
     );
     ------------------------------- End Memory Instantiation -----------------------------------------------
