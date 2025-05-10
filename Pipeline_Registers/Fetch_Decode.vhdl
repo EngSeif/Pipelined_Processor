@@ -26,11 +26,11 @@ BEGIN
             IF_ID_PC          <= (OTHERS => '0');
 
         ELSIF rising_edge(clk) THEN
-            if MemDest = '1' and IF_ID_Write = '1' then
+            IF MemDest = '1' AND IF_ID_Write = '1' THEN
                 IF_ID_Instruction <= fetched_instruction;
                 IF_ID_PC          <= PC;
 
-            end if;
+            END IF;
 
         END IF;
     END PROCESS;

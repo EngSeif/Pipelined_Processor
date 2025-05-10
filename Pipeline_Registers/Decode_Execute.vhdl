@@ -57,20 +57,18 @@ BEGIN
             ID_EXE_Opcode    <= (OTHERS => '0');
             ID_EXE_Off_Imm   <= (OTHERS => '0');
         ELSIF rising_edge(clk) THEN
-            IF EX = '1' THEN
-                ID_EXE_M         <= M;
-                ID_EXE_WB        <= WB;
-                ID_EXE_PC        <= PC;
-                ID_EXE_index     <= index;
-                ID_EXE_readData1 <= readData1;
-                ID_EXE_readData2 <= readData2;
-                ID_EXE_Rsrc1     <= Rsrc1;
-                ID_EXE_Rsrc2     <= Rsrc2;
-                ID_EXE_Rdest     <= Rdest;
-                ID_EXE_Opcode    <= Opcode;
-                ID_EXE_Off_Imm   <= Off_Imm;
 
-            END IF;
+            ID_EXE_M         <= M;
+            ID_EXE_WB        <= WB;
+            ID_EXE_PC        <= PC;
+            ID_EXE_index     <= index;
+            ID_EXE_readData1 <= readData1;
+            ID_EXE_readData2 <= readData2;
+            ID_EXE_Rsrc1     <= Rsrc1;
+            ID_EXE_Rsrc2     <= Rsrc2;
+            ID_EXE_Rdest     <= Rdest;
+            ID_EXE_Opcode    <= Opcode;
+            ID_EXE_Off_Imm   <= Off_Imm;
 
         END IF;
     END PROCESS;

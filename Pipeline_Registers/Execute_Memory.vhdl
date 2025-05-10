@@ -57,20 +57,19 @@ BEGIN
             EXE_MEM_Off_Imm    <= (OTHERS => '0');
             EXE_MEM_opcode     <= (OTHERS => '0');
         ELSIF rising_edge(clk) THEN
-            IF WB /= "00" THEN
-                EXE_MEM_WB         <= WB;
-                EXE_MEM_PC         <= PC;
-                EXE_MEM_index      <= index;
-                EXE_MEM_readData1  <= readData1;
-                EXE_MEM_readData2  <= readData2;
-                EXE_MEM_ALU_result <= ALU_result;
-                EXE_MEM_Rsrc1      <= Rsrc1;
-                EXE_MEM_Rsrc2      <= Rsrc2;
-                EXE_MEM_Rdest      <= Rdest;
-                EXE_MEM_Off_Imm    <= Off_Imm;
-                EXE_MEM_opcode     <= opcode;
 
-            END IF;
+            EXE_MEM_WB         <= WB;
+            EXE_MEM_M          <= M;
+            EXE_MEM_PC         <= PC;
+            EXE_MEM_index      <= index;
+            EXE_MEM_readData1  <= readData1;
+            EXE_MEM_readData2  <= readData2;
+            EXE_MEM_ALU_result <= ALU_result;
+            EXE_MEM_Rsrc1      <= Rsrc1;
+            EXE_MEM_Rsrc2      <= Rsrc2;
+            EXE_MEM_Rdest      <= Rdest;
+            EXE_MEM_Off_Imm    <= Off_Imm;
+            EXE_MEM_opcode     <= opcode;
 
         END IF;
     END PROCESS;
