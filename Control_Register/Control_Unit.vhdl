@@ -5,52 +5,52 @@ USE ieee.numeric_std.ALL;
 ENTITY Control_unit IS
     PORT (
         instruction_bits : IN STD_LOGIC_VECTOR(31 DOWNTO 0);
-        zero_flag : IN STD_LOGIC;
-        carry_flag : IN STD_LOGIC;
-        negative_flag : IN STD_LOGIC;
-        Int : IN STD_LOGIC;
-        rst : IN STD_LOGIC;
-        clk : IN STD_LOGIC;
-        opcode_ex : IN STD_LOGIC_VECTOR(5 DOWNTO 0);
-        opcode_mem : IN STD_LOGIC_VECTOR(5 DOWNTO 0);
-        dst_reg_ex : IN STD_LOGIC_VECTOR(2 DOWNTO 0);
-        wb_ctrl : OUT STD_LOGIC_VECTOR(1 DOWNTO 0);
-        pc_src : OUT STD_LOGIC_VECTOR(1 DOWNTO 0);
-        address_sel : OUT STD_LOGIC_VECTOR(1 DOWNTO 0);
-        mem_read : OUT STD_LOGIC;
-        mem_write : OUT STD_LOGIC;
-        reg_write_1 : OUT STD_LOGIC;
-        reg_write_2 : OUT STD_LOGIC;
-        hlt_flag : OUT STD_LOGIC;
-        sp_enable : OUT STD_LOGIC;
-        sp_push : OUT STD_LOGIC;
-        Int_Type : OUT STD_LOGIC;
-        stall_flag : OUT STD_LOGIC;
-        flush : OUT STD_LOGIC
+        zero_flag        : IN STD_LOGIC;
+        carry_flag       : IN STD_LOGIC;
+        negative_flag    : IN STD_LOGIC;
+        Int              : IN STD_LOGIC;
+        rst              : IN STD_LOGIC;
+        clk              : IN STD_LOGIC;
+        opcode_ex        : IN STD_LOGIC_VECTOR(5 DOWNTO 0);
+        opcode_mem       : IN STD_LOGIC_VECTOR(5 DOWNTO 0);
+        dst_reg_ex       : IN STD_LOGIC_VECTOR(2 DOWNTO 0);
+        wb_ctrl          : OUT STD_LOGIC_VECTOR(1 DOWNTO 0);
+        pc_src           : OUT STD_LOGIC_VECTOR(1 DOWNTO 0);
+        address_sel      : OUT STD_LOGIC_VECTOR(1 DOWNTO 0);
+        mem_read         : OUT STD_LOGIC;
+        mem_write        : OUT STD_LOGIC;
+        reg_write_1      : OUT STD_LOGIC;
+        reg_write_2      : OUT STD_LOGIC;
+        hlt_flag         : OUT STD_LOGIC;
+        sp_enable        : OUT STD_LOGIC;
+        sp_push          : OUT STD_LOGIC;
+        Int_Type         : OUT STD_LOGIC;
+        stall_flag       : OUT STD_LOGIC;
+        flush            : OUT STD_LOGIC
     );
 END ENTITY Control_unit;
 
 ARCHITECTURE control_arch OF Control_unit IS
-    CONSTANT OPCODE_WIDTH : INTEGER := 6;
-    SIGNAL opcode : STD_LOGIC_VECTOR(OPCODE_WIDTH - 1 DOWNTO 0);
+    CONSTANT OPCODE_WIDTH                : INTEGER := 6;
+    SIGNAL opcode                        : STD_LOGIC_VECTOR(OPCODE_WIDTH - 1 DOWNTO 0);
     SIGNAL mem_access_ex, mem_access_mem : STD_LOGIC;
 
     -- Opcode constants
-    CONSTANT OP_HLT : STD_LOGIC_VECTOR(5 DOWNTO 0) := "000001";
-    CONSTANT OP_INT : STD_LOGIC_VECTOR(5 DOWNTO 0) := "000100";
-    CONSTANT OP_RET : STD_LOGIC_VECTOR(5 DOWNTO 0) := "000011";
-    CONSTANT OP_RTI : STD_LOGIC_VECTOR(5 DOWNTO 0) := "000101";
+    CONSTANT OP_HLT  : STD_LOGIC_VECTOR(5 DOWNTO 0) := "000001";
+    CONSTANT OP_INT  : STD_LOGIC_VECTOR(5 DOWNTO 0) := "000100";
+    CONSTANT OP_RET  : STD_LOGIC_VECTOR(5 DOWNTO 0) := "000011";
+    CONSTANT OP_RTI  : STD_LOGIC_VECTOR(5 DOWNTO 0) := "000101";
     CONSTANT OP_SWAP : STD_LOGIC_VECTOR(5 DOWNTO 0) := "010101";
-    CONSTANT OP_IN : STD_LOGIC_VECTOR(5 DOWNTO 0) := "010011";
+    CONSTANT OP_IN   : STD_LOGIC_VECTOR(5 DOWNTO 0) := "010011";
     CONSTANT OP_PUSH : STD_LOGIC_VECTOR(5 DOWNTO 0) := "011001";
-    CONSTANT OP_POP : STD_LOGIC_VECTOR(5 DOWNTO 0) := "011010";
-    CONSTANT OP_LDD : STD_LOGIC_VECTOR(5 DOWNTO 0) := "100010";
-    CONSTANT OP_STD : STD_LOGIC_VECTOR(5 DOWNTO 0) := "100011";
+    CONSTANT OP_POP  : STD_LOGIC_VECTOR(5 DOWNTO 0) := "011010";
+    CONSTANT OP_LDD  : STD_LOGIC_VECTOR(5 DOWNTO 0) := "100010";
+    CONSTANT OP_STD  : STD_LOGIC_VECTOR(5 DOWNTO 0) := "100011";
     CONSTANT OP_CALL : STD_LOGIC_VECTOR(5 DOWNTO 0) := "100100";
-    CONSTANT OP_JZ : STD_LOGIC_VECTOR(5 DOWNTO 0) := "110000";
-    CONSTANT OP_JN : STD_LOGIC_VECTOR(5 DOWNTO 0) := "110001";
-    CONSTANT OP_JC : STD_LOGIC_VECTOR(5 DOWNTO 0) := "110010";
-    CONSTANT OP_JMP : STD_LOGIC_VECTOR(5 DOWNTO 0) := "110011";
+    CONSTANT OP_JZ   : STD_LOGIC_VECTOR(5 DOWNTO 0) := "110000";
+    CONSTANT OP_JN   : STD_LOGIC_VECTOR(5 DOWNTO 0) := "110001";
+    CONSTANT OP_JC   : STD_LOGIC_VECTOR(5 DOWNTO 0) := "110010";
+    CONSTANT OP_JMP  : STD_LOGIC_VECTOR(5 DOWNTO 0) := "110011";
 
 BEGIN
     opcode <= instruction_bits(31 DOWNTO 26);
@@ -117,35 +117,35 @@ BEGIN
     BEGIN
         CASE opcode IS
             WHEN OP_STD | OP_PUSH | OP_CALL | OP_INT => wb_ctrl <= "11";
-            WHEN OP_IN => wb_ctrl <= "10";
-            WHEN OP_LDD | OP_SWAP => wb_ctrl <= "01";
-            WHEN OTHERS => wb_ctrl <= "00";
+            WHEN OP_IN                               => wb_ctrl                               <= "10";
+            WHEN OP_LDD | OP_SWAP                    => wb_ctrl                    <= "01";
+            WHEN OTHERS                              => wb_ctrl                              <= "00";
         END CASE;
     END PROCESS;
 
     -- Stack and Address selection
     PROCESS (opcode, Int)
     BEGIN
-        sp_enable <= '0';
-        sp_push <= '0';
+        sp_enable   <= '0';
+        sp_push     <= '0';
         address_sel <= "00";
 
         CASE opcode IS
             WHEN OP_PUSH | OP_CALL | OP_INT =>
                 address_sel <= "01";
-                sp_enable <= '1';
-                sp_push <= '1';
+                sp_enable   <= '1';
+                sp_push     <= '1';
             WHEN OP_POP | OP_RET | OP_RTI =>
                 address_sel <= "01";
-                sp_enable <= '1';
-                sp_push <= '0';
+                sp_enable   <= '1';
+                sp_push     <= '0';
             WHEN OP_LDD | OP_STD =>
                 address_sel <= "10";
             WHEN OTHERS =>
                 IF Int = '1' THEN
                     address_sel <= "11";
-                    sp_enable <= '1';
-                    sp_push <= '1';
+                    sp_enable   <= '1';
+                    sp_push     <= '1';
                 END IF;
         END CASE;
     END PROCESS;
